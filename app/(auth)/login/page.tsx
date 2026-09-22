@@ -4,6 +4,7 @@ import { Suspense, useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, type ActionState } from "@/lib/actions/auth";
+import GoogleButton from "@/components/GoogleButton";
 
 const initialState: ActionState = {};
 
@@ -13,6 +14,11 @@ function LoginForm() {
   const next = params.get("next") || "/";
 
   return (
+    <>
+    <GoogleButton label="Continue with Google" />
+    <div className="flex items-center gap-3 my-4 text-xs text-[var(--muted)]">
+      <div className="flex-1 border-t" /> or <div className="flex-1 border-t" />
+    </div>
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="next" value={next} />
       <div>
@@ -30,6 +36,7 @@ function LoginForm() {
         {pending ? "Logging in…" : "Log in"}
       </button>
     </form>
+    </>
   );
 }
 

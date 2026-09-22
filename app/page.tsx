@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
+import AppShell from "@/components/AppShell";
 import RoleTag from "@/components/RoleTag";
 import { getCurrentProfile } from "@/lib/current-user";
 
@@ -24,11 +24,10 @@ export default async function HomePage() {
   }
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto max-w-5xl px-5 py-10">
+    <AppShell profile={profile}>
+      <main className="px-5 py-10 max-w-4xl">
         <div className="flex items-center gap-2 mb-1">
-          <h1 className="display text-2xl">Welcome, {profile.username}</h1>
+          <h1 className="display text-2xl">Welcome, {profile.full_name || profile.username}</h1>
           <RoleTag role={profile.role} />
         </div>
         <p className="text-[var(--muted)] mb-8">This is your home base. More modules will show up here over time.</p>
@@ -50,6 +49,6 @@ export default async function HomePage() {
           )}
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

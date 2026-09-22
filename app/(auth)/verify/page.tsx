@@ -27,7 +27,7 @@ function VerifyForm() {
             inputMode="numeric"
             maxLength={10}
             required
-            className="input text-center text-xl tracking-[0.5em]"
+            className="input text-center text-xl tracking-[0.3em]"
             placeholder="000000"
           />
         </div>

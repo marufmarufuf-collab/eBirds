@@ -2,6 +2,7 @@ export type Profile = {
   id: string;
   email: string;
   username: string;
+  full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
   role: string;
@@ -23,6 +24,7 @@ export type Message = {
   conversation_id: string;
   sender_id: string;
   content: string;
+  image_url: string | null;
   created_at: string;
   read_at: string | null;
 };

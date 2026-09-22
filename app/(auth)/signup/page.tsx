@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signUp, type ActionState } from "@/lib/actions/auth";
+import GoogleButton from "@/components/GoogleButton";
 
 const initialState: ActionState = {};
 
@@ -14,7 +15,16 @@ export default function SignupPage() {
       <h2 className="text-lg font-medium mb-1">Create your account</h2>
       <p className="text-sm text-[var(--muted)] mb-5">We'll email you a 6-digit code to confirm it's really you.</p>
 
+      <GoogleButton label="Continue with Google" />
+      <div className="flex items-center gap-3 my-4 text-xs text-[var(--muted)]">
+        <div className="flex-1 border-t" /> or <div className="flex-1 border-t" />
+      </div>
+
       <form action={formAction} className="space-y-3">
+        <div>
+          <label className="text-sm mb-1 block">Full name</label>
+          <input name="fullName" required className="input" placeholder="Your name" />
+        </div>
         <div>
           <label className="text-sm mb-1 block">Email</label>
           <input name="email" type="email" required className="input" placeholder="you@gmail.com" />

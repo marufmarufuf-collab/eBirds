@@ -1,4 +1,4 @@
-import Navbar from "@/components/Navbar";
+import AppShell from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/current-user";
 import { redirect } from "next/navigation";
@@ -26,9 +26,8 @@ export default async function MessagesPage() {
   const otherById = new Map((others ?? []).map((p) => [p.id, p]));
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-5 py-10">
+    <AppShell profile={profile}>
+      <main className="px-5 py-10 max-w-2xl">
         <h1 className="display text-2xl mb-4">Messages</h1>
         <UserSearch />
 
@@ -53,6 +52,6 @@ export default async function MessagesPage() {
           })}
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

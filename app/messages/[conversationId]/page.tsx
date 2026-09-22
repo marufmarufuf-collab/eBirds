@@ -1,4 +1,4 @@
-import Navbar from "@/components/Navbar";
+import AppShell from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/current-user";
 import { redirect, notFound } from "next/navigation";
@@ -30,9 +30,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
   if (!other) notFound();
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-5 py-6">
+    <AppShell profile={profile}>
+      <main className="px-5 py-6 max-w-2xl">
         <ChatView
           conversationId={conversationId}
           currentUserId={profile.id}
@@ -40,6 +39,6 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
           initialMessages={messages ?? []}
         />
       </main>
-    </>
+    </AppShell>
   );
 }

@@ -13,10 +13,15 @@ Next.js (App Router) and Supabase, not a chat app with features bolted on.
 ## Project layout
 
 ```
-app/(auth)/...        signup, login, 6-digit verify, password reset
-app/profile/...        view + edit your own profile, avatar upload
-app/messages/...       search users, conversation list, live chat
+app/(auth)/...        signup, login, 6-digit verify, password reset, Google button
+app/auth/callback/     OAuth redirect handler (Google sign-in)
+app/profile/...        your own profile: name, username, bio, avatar (one page, directly editable)
+app/settings/...       account settings: password change, sign out
+app/users/[id]/...     read-only profile of any other user (opened from chat), with a Message button
+app/messages/...       search users, conversation list, chat (polls every 5s, supports photos)
 app/admin/...           Super Admin dashboard (guarded route group)
+components/Sidebar.tsx, ProfileMenu.tsx, AppShell.tsx   navigation: left sidebar (bottom pill → Settings),
+                                                          top-right dropdown (Profile / Log out)
 lib/actions/...         Server Actions — all writes go through these
 lib/supabase/...        browser / server / middleware / admin(service-role) clients
 supabase/migrations/    SQL: tables, RLS policies, triggers
@@ -38,6 +43,27 @@ supabase/migrations/    SQL: tables, RLS policies, triggers
      Admin's own update path can't change it, it's enforced at the database
      level, not just in the UI.
    - The public `avatars` storage bucket with per-user folder policies.
+
+## 1b. Run the second migration (full names, random usernames, photos)
+
+In the SQL Editor, also run `supabase/migrations/0002_update.sql`. It adds:
+- `full_name` on profiles, and switches username generation to a random
+  10-character alphanumeric string (no longer derived from the email).
+- `image_url` on messages, plus a public `message-attachments` storage
+  bucket, so chat photos work.
+
+## 1c. Enable "Continue with Google"
+
+1. Supabase dashboard → Authentication → Sign In / Providers → Google → toggle it on.
+2. You'll need a Google OAuth Client ID/Secret from the [Google Cloud
+   Console](https://console.cloud.google.com/apis/credentials) (OAuth
+   consent screen + OAuth client ID, type "Web application").
+3. Authorized redirect URI to add in Google Cloud Console:
+   `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`
+4. Paste the Client ID/Secret into the Supabase Google provider settings and save.
+
+The app's side of this is already wired up (`components/GoogleButton.tsx` +
+`app/auth/callback/route.ts`) — nothing else to change in code.
 
 ## 2. Configure the 6-digit email code
 

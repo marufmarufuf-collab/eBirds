@@ -6,14 +6,20 @@ import { redirect } from "next/navigation";
 export type ActionState = { error?: string; success?: boolean };
 
 export async function signUp(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const fullName = String(formData.get("fullName") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
 
+  if (!fullName) return { error: "Full name is required." };
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName } },
+  });
 
   if (error) {
     // Supabase returns a generic message when the email is already registered
@@ -28,7 +34,7 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const token = String(formData.get("code") || "").trim();
 
-if (!/^\d{6,10}$/.test(token)) return { error: "Enter the code exactly as it appeared in your email." };
+  if (!/^\d{6,10}$/.test(token)) return { error: "Enter the code exactly as it appeared in your email." };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });

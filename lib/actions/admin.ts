@@ -51,6 +51,7 @@ export async function adminUpdateProfile(_prev: ActionState, formData: FormData)
   const supabase = await createClient();
   const userId = String(formData.get("userId") || "");
   const username = String(formData.get("username") || "").trim();
+  const fullName = String(formData.get("fullName") || "").trim();
   const role = String(formData.get("role") || "").trim() || "user";
   const bio = String(formData.get("bio") || "").trim();
   const isActive = formData.get("isActive") === "on";
@@ -66,7 +67,7 @@ export async function adminUpdateProfile(_prev: ActionState, formData: FormData)
 
   const { error } = await supabase
     .from("profiles")
-    .update({ username, role, bio, is_active: isActive })
+    .update({ username, full_name: fullName, role, bio, is_active: isActive })
     .eq("id", userId);
 
   if (error) {

@@ -29,6 +29,10 @@ export default function UserAdminForm({ user }: { user: Profile }) {
       <form action={profileAction} className="card p-6 space-y-3">
         <input type="hidden" name="userId" value={user.id} />
         <div>
+          <label className="text-sm mb-1 block">Full name</label>
+          <input name="fullName" defaultValue={user.full_name ?? ""} required className="input" />
+        </div>
+        <div>
           <label className="text-sm mb-1 block">Username</label>
           <input name="username" defaultValue={user.username} required className="input" />
         </div>

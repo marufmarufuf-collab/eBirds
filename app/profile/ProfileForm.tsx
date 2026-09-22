@@ -5,10 +5,11 @@ import { updateProfile, uploadAvatar } from "@/lib/actions/profile";
 import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
 import Avatar from "@/components/Avatar";
+import RoleTag from "@/components/RoleTag";
 
 const initialState: ActionState = {};
 
-export default function ProfileEditForm({ profile }: { profile: Profile }) {
+export default function ProfileForm({ profile }: { profile: Profile }) {
   const [infoState, infoAction, infoPending] = useActionState(updateProfile, initialState);
   const [avatarState, avatarAction, avatarPending] = useActionState(uploadAvatar, initialState);
 
@@ -27,6 +28,13 @@ export default function ProfileEditForm({ profile }: { profile: Profile }) {
       </form>
 
       <form action={infoAction} className="card p-6 space-y-3">
+        <div className="flex items-center gap-2 mb-2">
+          <RoleTag role={profile.role} />
+        </div>
+        <div>
+          <label className="text-sm mb-1 block">Full name</label>
+          <input name="fullName" defaultValue={profile.full_name ?? ""} required className="input" />
+        </div>
         <div>
           <label className="text-sm mb-1 block">Username</label>
           <input name="username" defaultValue={profile.username} required className="input" />
