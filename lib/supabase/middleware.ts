@@ -33,6 +33,19 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/verify") || path.startsWith("/forgot-password") || path.startsWith("/update-password");
   const isPublic = path === "/" || isAuthRoute || path.startsWith("/_next") || path.startsWith("/api") || path.startsWith("/auth/");
 
+  // Catches deactivated accounts that still have a live session (e.g. signed
+  // in before an admin deactivated them, or via Google OAuth).
+  if (user && !isPublic) {
+    const { data: profile } = await supabase.from("profiles").select("is_active").eq("id", user.id).single();
+    if (profile?.is_active === false) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("error", "deactivated");
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

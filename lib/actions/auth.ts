@@ -57,13 +57,24 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   const next = String(formData.get("next") || "/");
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     if (error.message.toLowerCase().includes("confirm")) {
       redirect(`/verify?email=${encodeURIComponent(email)}`);
     }
     return { error: "Invalid email or password." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_active")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profile && profile.is_active === false) {
+    await supabase.auth.signOut();
+    return { error: "This account has been deactivated." };
   }
 
   redirect(next || "/");
@@ -73,6 +84,30 @@ export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+export async function deleteOwnAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const password = String(formData.get("password") || "");
+  if (!password) return { error: "Enter your password to confirm." };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email) return { error: "Not signed in." };
+
+  // Re-verify the password before doing anything irreversible.
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (reauthError) return { error: "Incorrect password." };
+
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) return { error: error.message };
+
+  await supabase.auth.signOut();
+  redirect("/");
 }
 
 export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {

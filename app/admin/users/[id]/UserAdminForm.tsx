@@ -1,10 +1,44 @@
 "use client";
 
 import { useActionState } from "react";
-import { adminUpdateProfile, adminSetPassword, adminSetAvatar, adminGrantSuperAdmin } from "@/lib/actions/admin";
+import { adminUpdateProfile, adminSetPassword, adminSetAvatar, adminGrantSuperAdmin, adminDeleteUser } from "@/lib/actions/admin";
 import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
 import Avatar from "@/components/Avatar";
+import { useState } from "react";
+
+function DeleteUserButton({ userId, username }: { userId: string; username: string }) {
+  const [state, action, pending] = useActionState(adminDeleteUser, initialState);
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <div className="card p-6 border-[var(--danger)]">
+      <p className="text-sm font-medium text-[var(--danger)] mb-1">Delete this account</p>
+      <p className="text-sm text-[var(--muted)] mb-3">
+        Permanently deletes @{username} and all their messages. No password confirmation needed — Super Admin action.
+      </p>
+      {!confirming ? (
+        <button type="button" onClick={() => setConfirming(true)} className="btn btn-ghost text-[var(--danger)]">
+          Delete account
+        </button>
+      ) : (
+        <form action={action} className="space-y-3">
+          <input type="hidden" name="userId" value={userId} />
+          <p className="text-sm">Are you sure? This can't be undone.</p>
+          {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className="btn btn-primary bg-[var(--danger)]">
+              {pending ? "Deleting…" : "Yes, permanently delete"}
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} className="btn btn-ghost">
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
 
 const initialState: ActionState = {};
 
@@ -84,6 +118,8 @@ export default function UserAdminForm({ user }: { user: Profile }) {
           </button>
         </form>
       )}
+
+      {user.role !== "super_admin" && <DeleteUserButton userId={user.id} username={user.username} />}
     </div>
   );
 }

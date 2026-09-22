@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ActionState } from "./auth";
 import type { Profile } from "@/types/database";
 
@@ -155,4 +156,25 @@ export async function adminDeactivateUser(userId: string): Promise<ActionState> 
 
   revalidatePath("/admin");
   return { success: true };
+}
+
+export async function adminDeleteUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    await requireSuperAdmin();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
+  const userId = String(formData.get("userId") || "");
+  const target = await getUser(userId);
+  if (target?.email?.toLowerCase() === SUPER_ADMIN_EMAIL) {
+    return { error: "The original Super Admin account cannot be deleted." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  redirect("/admin");
 }

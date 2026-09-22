@@ -34,6 +34,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
       <main className="px-5 py-6 max-w-2xl">
         <ChatView
           conversationId={conversationId}
+          conversationStartedAt={convo.created_at}
           currentUserId={profile.id}
           other={other}
           initialMessages={messages ?? []}
