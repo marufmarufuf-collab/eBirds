@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUserId } from "@/lib/verified-user";
 import { redirect } from "next/navigation";
 import type { Profile, Message } from "@/types/database";
 
@@ -16,38 +17,50 @@ export async function getConversationList(): Promise<{
   otherUsers: Profile[];
 }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { conversations: [], otherUsers: [] };
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return { conversations: [], otherUsers: [] };
 
   const { data: convos } = await supabase
     .from("conversations")
     .select("id, user_a, user_b, created_at")
-    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+    .or(`user_a.eq.${userId},user_b.eq.${userId}`);
 
   const list = convos ?? [];
-  const otherIds = list.map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
+  const otherIds = list.map((c) => (c.user_a === userId ? c.user_b : c.user_a));
+  const excludeIds = [userId, ...otherIds];
 
-  const { data: others } = otherIds.length
-    ? await supabase.from("profiles").select("*").in("id", otherIds)
-    : { data: [] as Profile[] };
-  const otherById = new Map((others ?? []).map((p) => [p.id, p]));
+  // These three don't depend on each other — run them together instead of
+  // one after another (this alone was the biggest source of lag on the
+  // Messages page: 3 sequential round trips became 1).
+  const [othersResult, lastMessagesResult, otherUsersResult] = await Promise.all([
+    otherIds.length
+      ? supabase.from("profiles").select("*").in("id", otherIds)
+      : Promise.resolve({ data: [] as Profile[] }),
+    list.length
+      ? supabase
+          .from("messages")
+          .select("*")
+          .in("conversation_id", list.map((c) => c.id))
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as Message[] }),
+    supabase
+      .from("profiles")
+      .select("*")
+      .not("id", "in", `(${excludeIds.join(",")})`)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
-  const { data: lastMessages } = list.length
-    ? await supabase
-        .from("messages")
-        .select("*")
-        .in("conversation_id", list.map((c) => c.id))
-        .order("created_at", { ascending: false })
-    : { data: [] as Message[] };
+  const otherById = new Map((othersResult.data ?? []).map((p) => [p.id, p]));
 
   const lastByConvo = new Map<string, Message>();
-  for (const m of lastMessages ?? []) {
+  for (const m of lastMessagesResult.data ?? []) {
     if (!lastByConvo.has(m.conversation_id)) lastByConvo.set(m.conversation_id, m);
   }
 
   const conversations: ConversationPreview[] = list
     .map((c) => {
-      const other = otherById.get(c.user_a === user.id ? c.user_b : c.user_a);
+      const other = otherById.get(c.user_a === userId ? c.user_b : c.user_a);
       if (!other) return null;
       const lastMessage = lastByConvo.get(c.id) ?? null;
       return {
@@ -60,27 +73,18 @@ export async function getConversationList(): Promise<{
     .filter((x): x is ConversationPreview => x !== null)
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-  // People you haven't started a conversation with yet, most recently joined first.
-  const excludeIds = [user.id, ...otherIds];
-  const { data: otherUsers } = await supabase
-    .from("profiles")
-    .select("*")
-    .not("id", "in", `(${excludeIds.join(",")})`)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  return { conversations, otherUsers: (otherUsers ?? []) as Profile[] };
+  return { conversations, otherUsers: (otherUsersResult.data ?? []) as Profile[] };
 }
 
 export async function searchUsers(query: string): Promise<Profile[]> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !query.trim()) return [];
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId || !query.trim()) return [];
 
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .neq("id", user.id)
+    .neq("id", userId)
     .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
     .limit(20);
 
@@ -99,8 +103,8 @@ export async function startConversation(otherUserId: string) {
 // simpler to reason about and doesn't depend on Realtime being wired up.
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return [];
 
   const { data, error } = await supabase
     .from("messages")
@@ -114,13 +118,13 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 
 export async function sendMessage(conversationId: string, content: string, imageUrl?: string | null) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) throw new Error("Not signed in.");
   if (!content.trim() && !imageUrl) return;
 
   const { error } = await supabase.from("messages").insert({
     conversation_id: conversationId,
-    sender_id: user.id,
+    sender_id: userId,
     content: content.trim() || " ",
     image_url: imageUrl ?? null,
   });
@@ -130,8 +134,8 @@ export async function sendMessage(conversationId: string, content: string, image
 
 export async function uploadMessagePhoto(formData: FormData): Promise<{ url?: string; error?: string }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not signed in." };
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return { error: "Not signed in." };
 
   const file = formData.get("photo") as File | null;
   if (!file || file.size === 0) return { error: "Choose an image first." };
@@ -139,7 +143,7 @@ export async function uploadMessagePhoto(formData: FormData): Promise<{ url?: st
   if (file.size > 8 * 1024 * 1024) return { error: "Image must be under 8MB." };
 
   const ext = file.name.split(".").pop() || "jpg";
-  const path = `${user.id}/${Date.now()}.${ext}`;
+  const path = `${userId}/${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage.from("message-attachments").upload(path, file);
   if (uploadError) return { error: uploadError.message };

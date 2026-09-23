@@ -1,4 +1,3 @@
-import AppShell from "@/components/AppShell";
 import { getCurrentProfile } from "@/lib/current-user";
 import { redirect } from "next/navigation";
 
@@ -8,9 +7,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const profile = await getCurrentProfile();
   if (!profile || profile.role !== "super_admin") redirect("/");
 
-  return (
-    <AppShell profile={profile}>
-      <main className="px-5 py-10 max-w-4xl">{children}</main>
-    </AppShell>
-  );
+  return <main className="px-5 py-10 max-w-4xl">{children}</main>;
 }
