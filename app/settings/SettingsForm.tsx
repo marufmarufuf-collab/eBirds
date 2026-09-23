@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { changeOwnPassword } from "@/lib/actions/profile";
 import { deleteOwnAccount, signOut } from "@/lib/actions/auth";
 import type { ActionState } from "@/lib/actions/auth";
+import Spinner from "@/components/Spinner";
 
 const initialState: ActionState = {};
 
@@ -25,7 +26,7 @@ export default function SettingsForm({ email }: { email: string }) {
         {pwState.error && <p className="text-sm text-[var(--danger)]">{pwState.error}</p>}
         {pwState.success && <p className="text-sm text-[var(--accent)]">Password updated.</p>}
         <button type="submit" disabled={pwPending} className="btn btn-primary">
-          {pwPending ? "Updating…" : "Update password"}
+          {pwPending && <Spinner />} {pwPending ? "Updating…" : "Update password"}
         </button>
       </form>
 
@@ -51,7 +52,7 @@ export default function SettingsForm({ email }: { email: string }) {
             {delState.error && <p className="text-sm text-[var(--danger)]">{delState.error}</p>}
             <div className="flex gap-2">
               <button type="submit" disabled={delPending} className="btn btn-primary bg-[var(--danger)]">
-                {delPending ? "Deleting…" : "Permanently delete my account"}
+                {delPending && <Spinner />} {delPending ? "Deleting…" : "Permanently delete my account"}
               </button>
               <button type="button" onClick={() => setConfirmingDelete(false)} className="btn btn-ghost">
                 Cancel

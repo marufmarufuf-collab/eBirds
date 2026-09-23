@@ -3,6 +3,7 @@
 import { Suspense, useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { verifyCode, resendCode, type ActionState } from "@/lib/actions/auth";
+import Spinner from "@/components/Spinner";
 
 const initialState: ActionState = {};
 
@@ -35,7 +36,7 @@ function VerifyForm() {
         {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
 
         <button type="submit" disabled={pending} className="btn btn-primary w-full">
-          {pending ? "Verifying…" : "Verify & continue"}
+          {pending && <Spinner />} {pending ? "Verifying…" : "Verify & continue"}
         </button>
       </form>
 

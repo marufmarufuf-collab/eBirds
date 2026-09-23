@@ -36,7 +36,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       }`}
     >
       <div className={`p-4 border-b flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
-        {!collapsed && <Link href="/" className="display text-lg font-semibold">Platform</Link>}
+        {!collapsed && <Link href="/" className="display text-lg font-semibold gradient-text">eBirds</Link>}
         <button
           type="button"
           onClick={toggle}

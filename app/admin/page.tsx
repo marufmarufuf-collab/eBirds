@@ -24,7 +24,7 @@ export default async function AdminDashboard({
           <Link
             key={u.id}
             href={`/admin/users/${u.id}`}
-            className="card p-4 flex items-center gap-3 hover:border-[var(--accent)]"
+            className="card enter p-4 flex items-center gap-3 hover-lift"
           >
             <Avatar url={u.avatar_url} name={u.username} size={40} />
             <div className="flex-1">

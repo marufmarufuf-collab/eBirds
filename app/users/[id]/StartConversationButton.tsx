@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { startConversation } from "@/lib/actions/messaging";
+import Spinner from "@/components/Spinner";
 
 export default function StartConversationButton({ userId }: { userId: string }) {
   const [pending, startTransition] = useTransition();
@@ -11,7 +12,7 @@ export default function StartConversationButton({ userId }: { userId: string }) 
       disabled={pending}
       className="btn btn-primary"
     >
-      {pending ? "Opening…" : "Message"}
+      {pending && <Spinner />} {pending ? "Opening…" : "Message"}
     </button>
   );
 }

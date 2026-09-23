@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
 import Avatar from "@/components/Avatar";
 import { useState } from "react";
+import Spinner from "@/components/Spinner";
 
 function DeleteUserButton({ userId, username }: { userId: string; username: string }) {
   const [state, action, pending] = useActionState(adminDeleteUser, initialState);
@@ -28,7 +29,7 @@ function DeleteUserButton({ userId, username }: { userId: string; username: stri
           {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className="btn btn-primary bg-[var(--danger)]">
-              {pending ? "Deleting…" : "Yes, permanently delete"}
+              {pending && <Spinner />} {pending ? "Deleting…" : "Yes, permanently delete"}
             </button>
             <button type="button" onClick={() => setConfirming(false)} className="btn btn-ghost">
               Cancel
@@ -55,7 +56,7 @@ export default function UserAdminForm({ user }: { user: Profile }) {
         <Avatar url={user.avatar_url} name={user.username} size={56} />
         <input type="file" name="avatar" accept="image/*" className="text-sm flex-1" />
         <button type="submit" disabled={avatarPending} className="btn btn-primary">
-          {avatarPending ? "Uploading…" : "Upload"}
+          {avatarPending && <Spinner />} {avatarPending ? "Uploading…" : "Upload"}
         </button>
         {avatarState.error && <p className="text-sm text-[var(--danger)]">{avatarState.error}</p>}
       </form>
@@ -91,7 +92,7 @@ export default function UserAdminForm({ user }: { user: Profile }) {
         {profileState.success && <p className="text-sm text-[var(--accent)]">Saved.</p>}
 
         <button type="submit" disabled={profilePending} className="btn btn-primary">
-          {profilePending ? "Saving…" : "Save changes"}
+          {profilePending && <Spinner />} {profilePending ? "Saving…" : "Save changes"}
         </button>
       </form>
 
@@ -102,7 +103,7 @@ export default function UserAdminForm({ user }: { user: Profile }) {
         {pwState.error && <p className="text-sm text-[var(--danger)]">{pwState.error}</p>}
         {pwState.success && <p className="text-sm text-[var(--accent)]">Password updated.</p>}
         <button type="submit" disabled={pwPending} className="btn btn-ghost">
-          {pwPending ? "Updating…" : "Update password"}
+          {pwPending && <Spinner />} {pwPending ? "Updating…" : "Update password"}
         </button>
       </form>
 
@@ -114,7 +115,7 @@ export default function UserAdminForm({ user }: { user: Profile }) {
           </p>
           {promoteState.error && <p className="text-sm text-[var(--danger)] mb-2">{promoteState.error}</p>}
           <button type="submit" disabled={promotePending} className="btn btn-ghost border-[var(--danger)] text-[var(--danger)]">
-            {promotePending ? "Granting…" : "Make Super Admin"}
+            {promotePending && <Spinner />} {promotePending ? "Granting…" : "Make Super Admin"}
           </button>
         </form>
       )}

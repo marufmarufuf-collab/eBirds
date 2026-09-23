@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Platform",
-  description: "A modular community platform: accounts, profiles, messaging, and admin.",
+  title: "eBirds",
+  description: "eBirds — accounts, profiles, messaging, and admin, all in one place.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, type ActionState } from "@/lib/actions/auth";
 import GoogleButton from "@/components/GoogleButton";
+import Spinner from "@/components/Spinner";
 
 const initialState: ActionState = {};
 
@@ -33,7 +34,7 @@ function LoginForm() {
       {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary w-full">
-        {pending ? "Logging in…" : "Log in"}
+        {pending && <Spinner />} {pending ? "Logging in…" : "Log in"}
       </button>
     </form>
     </>

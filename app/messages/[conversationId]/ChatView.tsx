@@ -6,6 +6,7 @@ import { sendMessage, uploadMessagePhoto } from "@/lib/actions/messaging";
 import { dayLabel, timeLabel } from "@/lib/format-date";
 import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
+import Spinner from "@/components/Spinner";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
 
@@ -201,8 +202,8 @@ export default function ChatView({
 
       <div className="p-3 border-t flex gap-2 items-center">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
-        <label htmlFor="photo-input" className="btn btn-ghost !px-3 cursor-pointer" aria-label="Send photo">
-          {uploading ? "…" : "📷"}
+        <label htmlFor="photo-input" className="btn btn-ghost !px-3" aria-label="Send photo" aria-disabled={uploading}>
+          {uploading ? <Spinner /> : "📷"}
         </label>
         <input
           className="input"
@@ -218,7 +219,7 @@ export default function ChatView({
           }}
         />
         <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary">
-          {sending ? "…" : "Send"}
+          {sending && <Spinner />} Send
         </button>
       </div>
 

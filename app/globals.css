@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #14161c;
-  --paper: #f7f6f2;
+  --ink: #241a12;
+  --paper: #fff8f2;
   --surface: #ffffff;
-  --line: #e4e1d8;
-  --muted: #6b6a63;
-  --accent: #2f6f5e;
+  --line: #ffe1c4;
+  --muted: #8a7565;
+  --accent: #ff6a1a;
+  --accent-2: #ff9142;
+  --accent-dark: #e3540a;
   --accent-ink: #ffffff;
-  --danger: #b3402f;
+  --danger: #d8402c;
+  --success: #1f9d5a;
+  --ring: #ffb37a;
+  --shadow: 0 1px 2px rgba(36, 26, 18, 0.04), 0 8px 24px -12px rgba(255, 106, 26, 0.18);
 }
 
 * { border-color: var(--line); }
@@ -24,10 +29,29 @@ h1, h2, h3, .display {
   letter-spacing: -0.01em;
 }
 
+.gradient-text {
+  background: linear-gradient(120deg, var(--accent-dark), var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+/* Buttons, links, and anything interactive get a pointer cursor and a
+   consistent, instant-feeling pressed state. Disabled = clearly inert. */
+a, button, [role="button"], summary, label[for], input[type="checkbox"], input[type="radio"], select {
+  cursor: pointer;
+}
+button:disabled, [aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.65;
 }
 
 .btn {
@@ -39,22 +63,24 @@ h1, h2, h3, .display {
   padding: 0.6rem 1.1rem;
   font-weight: 500;
   font-size: 0.9rem;
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
 }
-.btn:active { transform: scale(0.98); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
   color: var(--accent-ink);
+  box-shadow: 0 4px 14px -4px rgba(255, 106, 26, 0.55);
 }
-.btn-primary:hover { background: #275c4d; }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 6px 18px -4px rgba(255, 106, 26, 0.65); filter: brightness(1.03); }
 
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--ink);
 }
-.btn-ghost:hover { background: #efece3; }
+.btn-ghost:hover:not(:disabled) { background: #fff1e4; border-color: var(--accent-2); }
 
 .input {
   width: 100%;
@@ -63,10 +89,12 @@ h1, h2, h3, .display {
   border-radius: 10px;
   padding: 0.6rem 0.8rem;
   font-size: 0.92rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .tag {
@@ -79,10 +107,33 @@ h1, h2, h3, .display {
   color: var(--muted);
 }
 .tag-admin {
-  background: #14161c;
-  color: #f7f6f2;
-  border-color: #14161c;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-dark));
+  color: #fff;
+  border-color: transparent;
 }
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Gentle entrance for cards/messages/list rows */
+.enter {
+  animation: enter 0.22s ease both;
+}
+@keyframes enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hover-lift:hover { transform: translateY(-1px); box-shadow: 0 10px 28px -14px rgba(255, 106, 26, 0.35); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

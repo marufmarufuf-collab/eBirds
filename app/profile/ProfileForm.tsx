@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
 import Avatar from "@/components/Avatar";
 import RoleTag from "@/components/RoleTag";
+import Spinner from "@/components/Spinner";
 
 const initialState: ActionState = {};
 
@@ -23,7 +24,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           {avatarState.success && <p className="text-sm text-[var(--accent)] mt-1">Photo updated.</p>}
         </div>
         <button type="submit" disabled={avatarPending} className="btn btn-primary">
-          {avatarPending ? "Uploading…" : "Upload"}
+          {avatarPending && <Spinner />} {avatarPending ? "Uploading…" : "Upload"}
         </button>
       </form>
 
@@ -52,7 +53,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         {infoState.success && <p className="text-sm text-[var(--accent)]">Saved.</p>}
 
         <button type="submit" disabled={infoPending} className="btn btn-primary">
-          {infoPending ? "Saving…" : "Save changes"}
+          {infoPending && <Spinner />} {infoPending ? "Saving…" : "Save changes"}
         </button>
       </form>
     </div>

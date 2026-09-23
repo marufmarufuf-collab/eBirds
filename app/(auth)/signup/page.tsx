@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signUp, type ActionState } from "@/lib/actions/auth";
 import GoogleButton from "@/components/GoogleButton";
+import Spinner from "@/components/Spinner";
 
 const initialState: ActionState = {};
 
@@ -37,7 +38,7 @@ export default function SignupPage() {
         {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
 
         <button type="submit" disabled={pending} className="btn btn-primary w-full">
-          {pending ? "Creating account…" : "Sign up"}
+          {pending && <Spinner />} {pending ? "Creating account…" : "Sign up"}
         </button>
       </form>
 

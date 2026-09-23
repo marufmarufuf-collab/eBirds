@@ -4,6 +4,74 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Profile, Message } from "@/types/database";
 
+export type ConversationPreview = {
+  conversationId: string;
+  other: Profile;
+  lastMessage: Message | null;
+  updatedAt: string;
+};
+
+export async function getConversationList(): Promise<{
+  conversations: ConversationPreview[];
+  otherUsers: Profile[];
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { conversations: [], otherUsers: [] };
+
+  const { data: convos } = await supabase
+    .from("conversations")
+    .select("id, user_a, user_b, created_at")
+    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+
+  const list = convos ?? [];
+  const otherIds = list.map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
+
+  const { data: others } = otherIds.length
+    ? await supabase.from("profiles").select("*").in("id", otherIds)
+    : { data: [] as Profile[] };
+  const otherById = new Map((others ?? []).map((p) => [p.id, p]));
+
+  const { data: lastMessages } = list.length
+    ? await supabase
+        .from("messages")
+        .select("*")
+        .in("conversation_id", list.map((c) => c.id))
+        .order("created_at", { ascending: false })
+    : { data: [] as Message[] };
+
+  const lastByConvo = new Map<string, Message>();
+  for (const m of lastMessages ?? []) {
+    if (!lastByConvo.has(m.conversation_id)) lastByConvo.set(m.conversation_id, m);
+  }
+
+  const conversations: ConversationPreview[] = list
+    .map((c) => {
+      const other = otherById.get(c.user_a === user.id ? c.user_b : c.user_a);
+      if (!other) return null;
+      const lastMessage = lastByConvo.get(c.id) ?? null;
+      return {
+        conversationId: c.id,
+        other,
+        lastMessage,
+        updatedAt: lastMessage?.created_at ?? c.created_at,
+      };
+    })
+    .filter((x): x is ConversationPreview => x !== null)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  // People you haven't started a conversation with yet, most recently joined first.
+  const excludeIds = [user.id, ...otherIds];
+  const { data: otherUsers } = await supabase
+    .from("profiles")
+    .select("*")
+    .not("id", "in", `(${excludeIds.join(",")})`)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return { conversations, otherUsers: (otherUsers ?? []) as Profile[] };
+}
+
 export async function searchUsers(query: string): Promise<Profile[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
