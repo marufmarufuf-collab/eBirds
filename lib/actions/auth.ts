@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { recordLogin } from "@/lib/record-login";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -76,6 +77,8 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     await supabase.auth.signOut();
     return { error: "This account has been deactivated." };
   }
+
+  await recordLogin(supabase, data.user.id);
 
   redirect(next || "/");
 }

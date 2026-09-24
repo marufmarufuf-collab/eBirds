@@ -13,7 +13,7 @@
   --danger: #d8402c;
   --success: #1f9d5a;
   --ring: #ffb37a;
-  --shadow: 0 1px 2px rgba(36, 26, 18, 0.04), 0 8px 24px -12px rgba(255, 106, 26, 0.18);
+  --shadow: 0 1px 2px rgba(36, 26, 18, 0.05);
 }
 
 * { border-color: var(--line); }
@@ -39,7 +39,7 @@ h1, h2, h3, .display {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--shadow);
   transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
@@ -69,11 +69,10 @@ button:disabled, [aria-disabled="true"] {
 .btn:active:not(:disabled) { transform: scale(0.97); }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 4px 14px -4px rgba(255, 106, 26, 0.55);
 }
-.btn-primary:hover:not(:disabled) { box-shadow: 0 6px 18px -4px rgba(255, 106, 26, 0.65); filter: brightness(1.03); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
 
 .btn-ghost {
   background: transparent;
@@ -107,7 +106,7 @@ button:disabled, [aria-disabled="true"] {
   color: var(--muted);
 }
 .tag-admin {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-dark));
+  background: var(--ink);
   color: #fff;
   border-color: transparent;
 }
@@ -133,7 +132,7 @@ button:disabled, [aria-disabled="true"] {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.hover-lift:hover { transform: translateY(-1px); box-shadow: 0 10px 28px -14px rgba(255, 106, 26, 0.35); }
+.hover-lift:hover { transform: translateY(-1px); border-color: var(--accent-2); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

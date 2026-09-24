@@ -2,6 +2,7 @@ import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import RoleTag from "@/components/RoleTag";
 import { listUsers } from "@/lib/actions/admin";
+import { relativeFromNow } from "@/lib/format-date";
 import AdminSearch from "./AdminSearch";
 
 export default async function AdminDashboard({
@@ -35,7 +36,7 @@ export default async function AdminDashboard({
               </div>
               <p className="text-xs text-[var(--muted)]">{u.email}</p>
             </div>
-            <p className="text-xs text-[var(--muted)]">{new Date(u.created_at).toLocaleDateString()}</p>
+            <p className="text-xs text-[var(--muted)] shrink-0">{relativeFromNow(u.last_seen_at)}</p>
           </Link>
         ))}
       </div>

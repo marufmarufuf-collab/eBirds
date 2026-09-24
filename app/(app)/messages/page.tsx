@@ -1,21 +1,12 @@
-import { getVerifiedUserId } from "@/lib/verified-user";
-import { createClient } from "@/lib/supabase/server";
-import { getConversationList } from "@/lib/actions/messaging";
-import ConversationList from "./ConversationList";
+import { MessagesIcon } from "@/components/icons";
 
-export default async function MessagesPage() {
-  const supabase = await createClient();
-  const userId = await getVerifiedUserId(supabase);
-  const { conversations, otherUsers } = await getConversationList();
-
+// Right-pane default: shown on desktop when no conversation is open yet.
+// Hidden entirely on mobile (the list itself fills the screen there).
+export default function MessagesIndexPage() {
   return (
-    <main className="px-5 py-10 max-w-2xl">
-      <h1 className="display text-2xl mb-4">Messages</h1>
-      <ConversationList
-        currentUserId={userId!}
-        initialConversations={conversations}
-        initialOtherUsers={otherUsers}
-      />
-    </main>
+    <div className="flex-1 flex flex-col items-center justify-center text-[var(--muted)] text-sm h-full p-5 text-center gap-2">
+      <MessagesIcon className="w-8 h-8 opacity-40" />
+      Select a conversation, or start a new one from the list.
+    </div>
   );
 }

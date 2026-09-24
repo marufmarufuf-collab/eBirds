@@ -7,6 +7,7 @@ import { dayLabel, timeLabel } from "@/lib/format-date";
 import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import Spinner from "@/components/Spinner";
+import { CameraIcon } from "@/components/icons";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
 
@@ -128,9 +129,9 @@ export default function ChatView({
   }, [messages]);
 
   return (
-    <div className="card flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
+    <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 p-4 border-b">
-        <Link href="/messages" className="btn btn-ghost !p-2" aria-label="Back">←</Link>
+        <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
         <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80">
           <Avatar url={other.avatar_url} name={other.username} size={36} />
           <div>
@@ -203,7 +204,7 @@ export default function ChatView({
       <div className="p-3 border-t flex gap-2 items-center">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
         <label htmlFor="photo-input" className="btn btn-ghost !px-3" aria-label="Send photo" aria-disabled={uploading}>
-          {uploading ? <Spinner /> : "📷"}
+          {uploading ? <Spinner /> : <CameraIcon />}
         </label>
         <input
           className="input"

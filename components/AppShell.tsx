@@ -10,7 +10,7 @@ export default function AppShell({ profile, children }: { profile: Profile; chil
       <div className="flex-1 min-w-0">
         <div className="h-16 border-b bg-[var(--surface)] flex items-center justify-between px-5 gap-3 sticky top-0 z-20">
           <nav className="flex md:hidden items-center gap-1 text-sm">
-            <Link href="/" className="btn btn-ghost !px-2">Home</Link>
+            <Link href="/home" className="btn btn-ghost !px-2">Home</Link>
             <Link href="/messages" className="btn btn-ghost !px-2">Messages</Link>
             {profile.role === "super_admin" && <Link href="/admin" className="btn btn-ghost !px-2">Admin</Link>}
             <Link href="/settings" className="btn btn-ghost !px-2">Settings</Link>

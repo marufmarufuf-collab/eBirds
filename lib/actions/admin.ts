@@ -40,6 +40,20 @@ export async function getUser(id: string): Promise<Profile | null> {
   return data as Profile | null;
 }
 
+export type LoginEvent = { id: string; created_at: string; user_agent: string | null };
+
+export async function getLoginHistory(userId: string): Promise<LoginEvent[]> {
+  await requireSuperAdmin();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("login_events")
+    .select("id, created_at, user_agent")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  return (data ?? []) as LoginEvent[];
+}
+
 // Update username / bio / role / active-status for ANY user. Email is
 // intentionally not accepted here — the DB trigger would reject it anyway.
 export async function adminUpdateProfile(_prev: ActionState, formData: FormData): Promise<ActionState> {

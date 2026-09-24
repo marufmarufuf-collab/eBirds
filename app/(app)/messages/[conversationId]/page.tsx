@@ -26,14 +26,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
   if (!other) notFound();
 
   return (
-    <main className="px-5 py-6 max-w-2xl">
-      <ChatView
-        conversationId={conversationId}
-        conversationStartedAt={convo.created_at}
-        currentUserId={userId}
-        other={other}
-        initialMessages={messages ?? []}
-      />
-    </main>
+    <ChatView
+      conversationId={conversationId}
+      conversationStartedAt={convo.created_at}
+      currentUserId={userId}
+      other={other}
+      initialMessages={messages ?? []}
+    />
   );
 }
