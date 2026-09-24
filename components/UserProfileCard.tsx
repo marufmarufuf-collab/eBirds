@@ -1,4 +1,4 @@
-import Avatar from "./Avatar";
+import ClickableAvatar from "./ClickableAvatar";
 import RoleTag from "./RoleTag";
 import StartConversationButton from "@/app/(app)/users/[id]/StartConversationButton";
 import type { Profile } from "@/types/database";
@@ -7,7 +7,7 @@ export default function UserProfileCard({ user }: { user: Profile }) {
   return (
     <>
       <div className="card p-6 flex items-center gap-4">
-        <Avatar url={user.avatar_url} name={user.username} size={64} />
+        <ClickableAvatar userId={user.id} url={user.avatar_url} name={user.username} size={64} isOwn={false} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-medium">{user.full_name || user.username}</h1>

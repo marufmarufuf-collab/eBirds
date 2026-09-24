@@ -37,8 +37,13 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       }`}
     >
       <div className={`p-4 border-b flex items-center ${collapsed ? "justify-center" : ""}`}>
-        <Link href="/home" className="display text-lg font-semibold gradient-text">
-          {collapsed ? "e" : "eBirds"}
+        <Link href="/home" className="flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={collapsed ? "/logo-icon.png" : "/logo-full.png"}
+            alt="eBirds"
+            className={collapsed ? "h-7 w-7 object-contain" : "h-7 w-auto object-contain"}
+          />
         </Link>
       </div>
 

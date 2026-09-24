@@ -22,7 +22,8 @@ export default async function RootPage() {
         }}
       />
       <div className="max-w-md text-center enter">
-        <h1 className="display text-4xl mb-3 gradient-text font-semibold">eBirds</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-full.png" alt="eBirds" className="h-16 w-auto object-contain mx-auto mb-3" />
         <p className="text-lg mb-1">A place for your people</p>
         <p className="text-[var(--muted)] mb-6">
           Accounts, profiles, and messaging — built as one platform, not a chat app with extras bolted on.

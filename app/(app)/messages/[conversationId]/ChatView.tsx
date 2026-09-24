@@ -8,6 +8,7 @@ import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import Spinner from "@/components/Spinner";
 import { CameraIcon } from "@/components/icons";
+import LinkifiedText from "@/components/LinkifiedText";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
 
@@ -171,7 +172,7 @@ export default function ChatView({
                         onClick={() => setLightbox(m.image_url)}
                       />
                     )}
-                    {m.content.trim() && <span>{m.content}</span>}
+                    {m.content.trim() && <LinkifiedText text={m.content} />}
                     <div className={`text-[10px] mt-1 ${mine ? "text-white/70" : "text-[var(--muted)]"}`}>
                       {timeLabel(m.created_at)}
                     </div>

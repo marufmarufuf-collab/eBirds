@@ -3,7 +3,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <main className="min-h-screen flex items-center justify-center px-5 py-16">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="display text-2xl gradient-text font-semibold">eBirds</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-full.png" alt="eBirds" className="h-9 w-auto object-contain mx-auto" />
         </div>
         <div className="card p-6">{children}</div>
       </div>

@@ -126,14 +126,18 @@ export async function adminSetAvatar(_prev: ActionState, formData: FormData): Pr
 
   const admin = createAdminClient();
   const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/avatar.${ext}`;
+  const path = `${userId}/${Date.now()}.${ext}`;
 
-  const { error: uploadError } = await admin.storage.from("avatars").upload(path, file, { upsert: true });
+  const { error: uploadError } = await admin.storage.from("avatars").upload(path, file);
   if (uploadError) return { error: uploadError.message };
 
   const { data: pub } = admin.storage.from("avatars").getPublicUrl(path);
-  const { error } = await admin.from("profiles").update({ avatar_url: `${pub.publicUrl}?t=${Date.now()}` }).eq("id", userId);
+  const [{ error }, { error: photoError }] = await Promise.all([
+    admin.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", userId),
+    admin.from("profile_photos").insert({ user_id: userId, url: pub.publicUrl }),
+  ]);
   if (error) return { error: error.message };
+  if (photoError) return { error: photoError.message };
 
   revalidatePath(`/admin/users/${userId}`);
   return { success: true };

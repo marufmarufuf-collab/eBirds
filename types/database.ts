@@ -1,3 +1,10 @@
+export type ProfilePhoto = {
+  id: string;
+  user_id: string;
+  url: string;
+  created_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string;
