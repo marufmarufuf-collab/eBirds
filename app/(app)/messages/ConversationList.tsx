@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { searchUsers, startConversation, getConversationList, type ConversationPreview } from "@/lib/actions/messaging";
 import { timeLabel, dayLabel } from "@/lib/format-date";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
+import { SearchIcon } from "@/components/icons";
 import type { Profile, Message } from "@/types/database";
 
 function previewText(m: Message | null, mine: boolean): string {
@@ -39,6 +40,7 @@ export default function ConversationList({
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const router = useRouter();
+  const pathname = usePathname();
 
   async function refresh() {
     const { conversations: c, otherUsers: o } = await getConversationList();
@@ -92,8 +94,9 @@ export default function ConversationList({
   return (
     <div>
       <div className="relative">
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
         <input
-          className="input"
+          className="input !pl-9"
           placeholder="Search by username or email…"
           value={query}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -113,7 +116,7 @@ export default function ConversationList({
                 key={u.id}
                 onClick={() => openWith(u.id)}
                 disabled={openingId === u.id}
-                className="w-full flex items-center gap-3 p-3 text-left hover:bg-[var(--paper)] border-b last:border-b-0"
+                className="w-full flex items-center gap-3 p-3 text-left hover:bg-[var(--surface-2)] border-b last:border-b-0"
               >
                 <Avatar url={u.avatar_url} name={u.username} size={32} />
                 <div className="flex-1">
@@ -127,38 +130,43 @@ export default function ConversationList({
         )}
       </div>
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 space-y-0.5">
         {conversations.length === 0 && (
-          <p className="text-sm text-[var(--muted)]">No conversations yet — say hello to someone below.</p>
+          <p className="text-sm text-[var(--muted)] px-1">No conversations yet — say hello to someone below.</p>
         )}
-        {conversations.map((c) => (
-          <Link
-            key={c.conversationId}
-            href={`/messages/${c.conversationId}`}
-            className="card enter p-4 flex items-center gap-3 hover-lift"
-          >
-            <Avatar url={c.other.avatar_url} name={c.other.username} size={44} />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{c.other.full_name || c.other.username}</p>
-              <p className="text-xs text-[var(--muted)] truncate">
-                {previewText(c.lastMessage, c.lastMessage?.sender_id === currentUserId)}
-              </p>
-            </div>
-            <span className="text-xs text-[var(--muted)] shrink-0">{relativeTime(c.updatedAt)}</span>
-          </Link>
-        ))}
+        {conversations.map((c) => {
+          const active = pathname === `/messages/${c.conversationId}`;
+          return (
+            <Link
+              key={c.conversationId}
+              href={`/messages/${c.conversationId}`}
+              className={`enter flex items-center gap-3 rounded-[12px] px-2.5 py-2.5 transition-colors ${
+                active ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--surface-2)]"
+              }`}
+            >
+              <Avatar url={c.other.avatar_url} name={c.other.username} size={44} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{c.other.full_name || c.other.username}</p>
+                <p className="text-xs text-[var(--muted)] truncate">
+                  {previewText(c.lastMessage, c.lastMessage?.sender_id === currentUserId)}
+                </p>
+              </div>
+              <span className="text-xs text-[var(--muted)] shrink-0">{relativeTime(c.updatedAt)}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {otherUsers.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-sm font-medium text-[var(--muted)] mb-2">People you haven't messaged</h2>
-          <div className="space-y-2">
+          <h2 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide mb-2 px-1">People you haven't messaged</h2>
+          <div className="space-y-0.5">
             {otherUsers.map((u) => (
               <button
                 key={u.id}
                 onClick={() => openWith(u.id)}
                 disabled={openingId === u.id}
-                className="card enter p-3 flex items-center gap-3 w-full text-left hover-lift"
+                className="enter flex items-center gap-3 rounded-[12px] px-2.5 py-2 w-full text-left hover:bg-[var(--surface-2)] transition-colors"
               >
                 <Avatar url={u.avatar_url} name={u.username} size={36} />
                 <div className="flex-1 min-w-0">

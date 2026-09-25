@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import BottomProfilePanel from "./BottomProfilePanel";
 import { HomeIcon, MessagesIcon, AdminIcon, SidebarToggleIcon } from "./icons";
@@ -8,9 +9,15 @@ import type { Profile } from "@/types/database";
 
 const STORAGE_KEY = "sidebar-collapsed";
 
+const NAV = [
+  { href: "/home", label: "Home", Icon: HomeIcon },
+  { href: "/messages", label: "Messages", Icon: MessagesIcon },
+] as const;
+
 export default function Sidebar({ profile }: { profile: Profile }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
@@ -25,6 +32,21 @@ export default function Sidebar({ profile }: { profile: Profile }) {
     });
   }
 
+  function isActive(href: string) {
+    return href === "/home" ? pathname === "/home" : pathname.startsWith(href);
+  }
+
+  function navClass(href: string) {
+    const active = isActive(href);
+    return `flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors ${
+      collapsed ? "justify-center !px-2" : ""
+    } ${
+      active
+        ? "bg-[var(--accent-soft)] text-[var(--accent-dark)]"
+        : "text-[var(--ink-soft)] hover:bg-[var(--surface-2)]"
+    }`;
+  }
+
   // Avoid a flash of the wrong width before we've read localStorage.
   if (!mounted) {
     return <aside className="hidden md:block w-56 shrink-0 border-r bg-[var(--surface)] h-screen sticky top-0" />;
@@ -36,7 +58,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
         collapsed ? "w-16" : "w-56"
       }`}
     >
-      <div className={`p-4 border-b flex items-center ${collapsed ? "justify-center" : ""}`}>
+      <div className={`h-16 px-4 border-b flex items-center ${collapsed ? "justify-center" : ""}`}>
         <Link href="/home" className="flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -47,16 +69,17 @@ export default function Sidebar({ profile }: { profile: Profile }) {
         </Link>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1 text-sm">
-        <Link href="/home" className={`btn btn-ghost w-full ${collapsed ? "justify-center !px-2" : "justify-start"}`} title="Home">
-          <HomeIcon /> {!collapsed && "Home"}
-        </Link>
-        <Link href="/messages" className={`btn btn-ghost w-full ${collapsed ? "justify-center !px-2" : "justify-start"}`} title="Messages">
-          <MessagesIcon /> {!collapsed && "Messages"}
-        </Link>
+      <nav className="flex-1 p-3 space-y-0.5">
+        {NAV.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} className={navClass(href)} title={label}>
+            <Icon className={isActive(href) ? "text-[var(--accent-dark)]" : ""} />
+            {!collapsed && label}
+          </Link>
+        ))}
         {profile.role === "super_admin" && (
-          <Link href="/admin" className={`btn btn-ghost w-full ${collapsed ? "justify-center !px-2" : "justify-start"}`} title="Admin Dashboard">
-            <AdminIcon /> {!collapsed && "Admin Dashboard"}
+          <Link href="/admin" className={navClass("/admin")} title="Admin Dashboard">
+            <AdminIcon className={isActive("/admin") ? "text-[var(--accent-dark)]" : ""} />
+            {!collapsed && "Admin Dashboard"}
           </Link>
         )}
       </nav>

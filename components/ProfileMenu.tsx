@@ -26,19 +26,19 @@ export default function ProfileMenu({ profile }: { profile: Profile }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-44 card p-1 z-40">
+        <div className="absolute right-0 mt-2 w-48 card p-1.5 z-40 enter" style={{ boxShadow: "var(--shadow-lg)" }}>
           <button
             type="button"
             onClick={() => {
               setOpen(false);
               router.push("/profile");
             }}
-            className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[var(--paper)]"
+            className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)]"
           >
             Profile
           </button>
           <form action={signOut}>
-            <button className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[var(--paper)] text-[var(--danger)]">
+            <button className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)] text-[var(--danger)]">
               Log out
             </button>
           </form>

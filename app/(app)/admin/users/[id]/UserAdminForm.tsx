@@ -28,7 +28,7 @@ function DeleteUserButton({ userId, username }: { userId: string; username: stri
           <p className="text-sm">Are you sure? This can't be undone.</p>
           {state.error && <p className="text-sm text-[var(--danger)]">{state.error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={pending} className="btn btn-primary bg-[var(--danger)]">
+            <button type="submit" disabled={pending} className="btn btn-danger">
               {pending && <Spinner />} {pending ? "Deleting…" : "Yes, permanently delete"}
             </button>
             <button type="button" onClick={() => setConfirming(false)} className="btn btn-ghost">

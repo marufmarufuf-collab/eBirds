@@ -22,7 +22,7 @@ export default function BottomProfilePanel({ profile, collapsed }: { profile: Pr
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-2 p-4 w-full hover:bg-[var(--paper)] ${collapsed ? "justify-center" : ""}`}
+        className={`flex items-center gap-2 p-4 w-full hover:bg-[var(--surface-2)] ${collapsed ? "justify-center" : ""}`}
         aria-expanded={open}
       >
         <Avatar url={profile.avatar_url} name={profile.username} size={32} />
@@ -34,15 +34,15 @@ export default function BottomProfilePanel({ profile, collapsed }: { profile: Pr
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-3 mb-2 w-44 card p-1 z-40">
-          <button onClick={() => go("/profile")} className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[var(--paper)]">
+        <div className="absolute bottom-full left-3 mb-2 w-48 card p-1.5 z-40 enter" style={{ boxShadow: "var(--shadow-lg)" }}>
+          <button onClick={() => go("/profile")} className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)]">
             Profile
           </button>
-          <button onClick={() => go("/settings")} className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[var(--paper)]">
+          <button onClick={() => go("/settings")} className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)]">
             Settings
           </button>
           <form action={signOut}>
-            <button className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[var(--paper)] text-[var(--danger)]">
+            <button className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)] text-[var(--danger)]">
               Log out
             </button>
           </form>

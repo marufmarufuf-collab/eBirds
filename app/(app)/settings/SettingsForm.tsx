@@ -51,7 +51,7 @@ export default function SettingsForm({ email }: { email: string }) {
             <input name="password" type="password" required className="input" placeholder="Password" autoFocus />
             {delState.error && <p className="text-sm text-[var(--danger)]">{delState.error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={delPending} className="btn btn-primary bg-[var(--danger)]">
+              <button type="submit" disabled={delPending} className="btn btn-danger">
                 {delPending && <Spinner />} {delPending ? "Deleting…" : "Permanently delete my account"}
               </button>
               <button type="button" onClick={() => setConfirmingDelete(false)} className="btn btn-ghost">

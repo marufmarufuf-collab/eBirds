@@ -131,7 +131,7 @@ export default function ChatView({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 p-4 border-b">
+      <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)]">
         <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
         <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80">
           <Avatar url={other.avatar_url} name={other.username} size={36} />
@@ -142,7 +142,7 @@ export default function ChatView({
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[var(--paper)]">
         <p className="text-center text-xs text-[var(--muted)] mb-3">
           Conversation started {dayLabel(conversationStartedAt)}
         </p>
@@ -150,7 +150,7 @@ export default function ChatView({
         {grouped.map((group) => (
           <div key={group.label}>
             <div className="flex justify-center my-3">
-              <span className="text-xs text-[var(--muted)] bg-[var(--paper)] px-2 py-0.5 rounded-full">
+              <span className="text-xs text-[var(--muted)] bg-[var(--surface)] border px-2.5 py-0.5 rounded-full shadow-sm">
                 {group.label}
               </span>
             </div>
@@ -159,8 +159,10 @@ export default function ChatView({
               return (
                 <div key={m.id} className={`flex mb-1.5 ${mine ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
-                      mine ? "bg-[var(--accent)] text-white" : "bg-[var(--paper)] border"
+                    className={`max-w-[75%] px-3 py-2 text-sm shadow-sm ${
+                      mine
+                        ? "bg-[var(--accent)] text-white rounded-2xl rounded-br-md"
+                        : "bg-[var(--surface)] border rounded-2xl rounded-bl-md"
                     }`}
                   >
                     {m.image_url && (
@@ -173,8 +175,14 @@ export default function ChatView({
                       />
                     )}
                     {m.content.trim() && <LinkifiedText text={m.content} />}
-                    <div className={`text-[10px] mt-1 ${mine ? "text-white/70" : "text-[var(--muted)]"}`}>
+                    <div className={`flex items-center gap-1 text-[10px] mt-1 ${mine ? "text-white/75 justify-end" : "text-[var(--muted)]"}`}>
                       {timeLabel(m.created_at)}
+                      {mine && !m.id.startsWith("local-") && (
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 8.5 4.5 12 9 5" />
+                          <path d="M6.5 8.5 10 12l4.5-8" />
+                        </svg>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -202,9 +210,9 @@ export default function ChatView({
         </div>
       )}
 
-      <div className="p-3 border-t flex gap-2 items-center">
+      <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
-        <label htmlFor="photo-input" className="btn btn-ghost !px-3" aria-label="Send photo" aria-disabled={uploading}>
+        <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full" aria-label="Send photo" aria-disabled={uploading}>
           {uploading ? <Spinner /> : <CameraIcon />}
         </label>
         <input
@@ -220,7 +228,7 @@ export default function ChatView({
             }
           }}
         />
-        <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary">
+        <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full">
           {sending && <Spinner />} Send
         </button>
       </div>
