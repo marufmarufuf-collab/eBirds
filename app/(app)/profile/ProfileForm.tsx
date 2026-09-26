@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { updateProfile, uploadAvatar } from "@/lib/actions/profile";
 import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
-import ClickableAvatar from "@/components/ClickableAvatar";
+import AvatarUploadForm from "@/components/AvatarUploadForm";
 import RoleTag from "@/components/RoleTag";
 import Spinner from "@/components/Spinner";
 
@@ -12,21 +12,10 @@ const initialState: ActionState = {};
 
 export default function ProfileForm({ profile }: { profile: Profile }) {
   const [infoState, infoAction, infoPending] = useActionState(updateProfile, initialState);
-  const [avatarState, avatarAction, avatarPending] = useActionState(uploadAvatar, initialState);
 
   return (
     <div className="space-y-6">
-      <form action={avatarAction} className="card p-6 flex items-center gap-4">
-        <ClickableAvatar userId={profile.id} url={profile.avatar_url} name={profile.username} size={56} isOwn />
-        <div className="flex-1">
-          <input type="file" name="avatar" accept="image/*" className="text-sm" />
-          {avatarState.error && <p className="text-sm text-[var(--danger)] mt-1">{avatarState.error}</p>}
-          {avatarState.success && <p className="text-sm text-[var(--accent)] mt-1">Photo updated.</p>}
-        </div>
-        <button type="submit" disabled={avatarPending} className="btn btn-primary">
-          {avatarPending && <Spinner />} {avatarPending ? "Uploading…" : "Upload"}
-        </button>
-      </form>
+      <AvatarUploadForm action={uploadAvatar} userId={profile.id} url={profile.avatar_url} name={profile.username} isOwn />
 
       <form action={infoAction} className="card p-6 space-y-3">
         <div className="flex items-center gap-2 mb-2">

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { adminUpdateProfile, adminSetPassword, adminSetAvatar, adminGrantSuperAdmin, adminDeleteUser } from "@/lib/actions/admin";
 import type { ActionState } from "@/lib/actions/auth";
 import type { Profile } from "@/types/database";
-import Avatar from "@/components/Avatar";
+import AvatarUploadForm from "@/components/AvatarUploadForm";
 import { useState } from "react";
 import Spinner from "@/components/Spinner";
 
@@ -46,20 +46,18 @@ const initialState: ActionState = {};
 export default function UserAdminForm({ user }: { user: Profile }) {
   const [profileState, profileAction, profilePending] = useActionState(adminUpdateProfile, initialState);
   const [pwState, pwAction, pwPending] = useActionState(adminSetPassword, initialState);
-  const [avatarState, avatarAction, avatarPending] = useActionState(adminSetAvatar, initialState);
   const [promoteState, promoteAction, promotePending] = useActionState(adminGrantSuperAdmin, initialState);
 
   return (
     <div className="space-y-6">
-      <form action={avatarAction} className="card p-6 flex items-center gap-4">
-        <input type="hidden" name="userId" value={user.id} />
-        <Avatar url={user.avatar_url} name={user.username} size={56} />
-        <input type="file" name="avatar" accept="image/*" className="text-sm flex-1" />
-        <button type="submit" disabled={avatarPending} className="btn btn-primary">
-          {avatarPending && <Spinner />} {avatarPending ? "Uploading…" : "Upload"}
-        </button>
-        {avatarState.error && <p className="text-sm text-[var(--danger)]">{avatarState.error}</p>}
-      </form>
+      <AvatarUploadForm
+        action={adminSetAvatar}
+        userId={user.id}
+        url={user.avatar_url}
+        name={user.username}
+        isOwn={false}
+        hiddenFields={<input type="hidden" name="userId" value={user.id} />}
+      />
 
       <form action={profileAction} className="card p-6 space-y-3">
         <input type="hidden" name="userId" value={user.id} />
