@@ -12,7 +12,7 @@ export default function MessagesShell({ list, children }: { list: React.ReactNod
   const inConversation = pathname !== "/messages";
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex" style={{ height: "calc(100dvh - 4rem - env(safe-area-inset-top, 0px))" }}>
       <div className={`${inConversation ? "hidden" : "flex"} md:flex md:w-96 border-r shrink-0 flex-col h-full overflow-y-auto`}>
         {list}
       </div>

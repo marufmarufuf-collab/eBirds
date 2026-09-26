@@ -116,20 +116,25 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return data as Message[];
 }
 
-export async function sendMessage(conversationId: string, content: string, imageUrl?: string | null) {
+export async function sendMessage(conversationId: string, content: string, imageUrl?: string | null): Promise<Message> {
   const supabase = await createClient();
   const userId = await getVerifiedUserId(supabase);
   if (!userId) throw new Error("Not signed in.");
-  if (!content.trim() && !imageUrl) return;
+  if (!content.trim() && !imageUrl) throw new Error("Nothing to send.");
 
-  const { error } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    sender_id: userId,
-    content: content.trim() || " ",
-    image_url: imageUrl ?? null,
-  });
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: content.trim() || " ",
+      image_url: imageUrl ?? null,
+    })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
+  return data as Message;
 }
 
 export async function uploadMessagePhoto(formData: FormData): Promise<{ url?: string; error?: string }> {

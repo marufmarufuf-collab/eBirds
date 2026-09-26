@@ -100,8 +100,9 @@ export default function ChatView({
         imageUrl = result.url;
       }
       // Optimistic append so the sender sees it instantly, not after a round trip.
+      const optimisticId = `local-${Date.now()}`;
       const optimistic: Message = {
-        id: `local-${Date.now()}`,
+        id: optimisticId,
         conversation_id: conversationId,
         sender_id: currentUserId,
         content: content || " ",
@@ -112,7 +113,18 @@ export default function ChatView({
       setMessages((prev) => [...prev, optimistic]);
       setDraft("");
       setPendingPhoto(null);
-      await sendMessage(conversationId, content, imageUrl ?? null);
+
+      const real = await sendMessage(conversationId, content, imageUrl ?? null);
+
+      // Swap the placeholder out for the confirmed row. If the realtime
+      // subscription already delivered this same row in the meantime
+      // (a race with the line above), don't add it a second time — that
+      // was the cause of messages briefly appearing twice.
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
+        if (withoutOptimistic.some((m) => m.id === real.id)) return withoutOptimistic;
+        return [...withoutOptimistic, real];
+      });
     } finally {
       setSending(false);
     }
@@ -133,11 +145,11 @@ export default function ChatView({
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)]">
         <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
-        <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80">
+        <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1">
           <Avatar url={other.avatar_url} name={other.username} size={36} />
-          <div>
-            <p className="font-medium text-sm">{other.full_name || other.username}</p>
-            <p className="text-xs text-[var(--muted)]">@{other.username}</p>
+          <div className="min-w-0">
+            <p className="font-medium text-sm truncate">{other.full_name || other.username}</p>
+            <p className="text-xs text-[var(--muted)] truncate">@{other.username}</p>
           </div>
         </Link>
       </div>
@@ -210,14 +222,14 @@ export default function ChatView({
         </div>
       )}
 
-      <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center">
+      <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center safe-bottom">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
-        <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full" aria-label="Send photo" aria-disabled={uploading}>
+        <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Send photo" aria-disabled={uploading}>
           {uploading ? <Spinner /> : <CameraIcon />}
         </label>
         <input
-          className="input"
-          placeholder="Write a message… (paste an image to attach it)"
+          className="input flex-1 min-w-0"
+          placeholder="Message…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onPaste={handlePaste}
@@ -228,7 +240,7 @@ export default function ChatView({
             }
           }}
         />
-        <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full">
+        <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full shrink-0 !px-4">
           {sending && <Spinner />} Send
         </button>
       </div>
