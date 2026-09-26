@@ -169,7 +169,7 @@ export default function ChatView({
             {group.items.map((m) => {
               const mine = m.sender_id === currentUserId;
               return (
-                <div key={m.id} className={`flex mb-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+                <div key={m.id} className={`enter flex mb-1.5 ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[75%] px-3 py-2 text-sm shadow-sm ${
                       mine
@@ -182,7 +182,7 @@ export default function ChatView({
                       <img
                         src={m.image_url}
                         alt="attachment"
-                        className="rounded-lg max-w-full mb-1 cursor-pointer"
+                        className="rounded-lg max-w-full mb-1 cursor-pointer transition-transform hover:scale-[1.015]"
                         onClick={() => setLightbox(m.image_url)}
                       />
                     )}

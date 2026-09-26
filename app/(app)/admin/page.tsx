@@ -21,10 +21,11 @@ export default async function AdminDashboard({
       <AdminSearch defaultValue={q ?? ""} />
 
       <div className="mt-6 space-y-2">
-        {users.map((u) => (
+        {users.map((u, i) => (
           <Link
             key={u.id}
             href={`/admin/users/${u.id}`}
+            style={{ animationDelay: `${Math.min(i, 10) * 20}ms` }}
             className="card enter p-4 flex items-center gap-3 hover-lift"
           >
             <Avatar url={u.avatar_url} name={u.username} size={40} />

@@ -48,8 +48,8 @@ export default function PhotoGalleryViewer({
   const current = photos?.[index];
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out">
-      <button onClick={onClose} className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10" aria-label="Close">
+    <div onClick={onClose} className="fixed inset-0 z-[100] bg-black/92 backdrop-fade flex items-center justify-center p-4 cursor-zoom-out">
+      <button onClick={onClose} className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors" aria-label="Close">
         ×
       </button>
 
@@ -63,14 +63,17 @@ export default function PhotoGalleryViewer({
         <div onClick={(e) => e.stopPropagation()} className="relative max-w-full max-h-full flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
             {photos!.length > 1 && index > 0 && (
-              <button onClick={() => setIndex((i) => i - 1)} className="text-white text-3xl px-2 hover:opacity-70" aria-label="Previous photo">
+              <button onClick={() => setIndex((i) => i - 1)} className="text-white text-3xl px-2 hover:opacity-70 transition-opacity" aria-label="Previous photo">
                 ‹
               </button>
             )}
+            {/* Same "photo-pop" entrance as opening a chat image — this is
+                the exact same interaction everywhere in the app. Keyed by
+                photo id so next/prev retriggers the pop for each photo. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current.url} alt="Profile" className="max-w-[80vw] max-h-[70vh] object-contain rounded" />
+            <img key={current.id} src={current.url} alt="Profile" className="photo-pop max-w-[80vw] max-h-[70vh] object-contain rounded-lg" />
             {photos!.length > 1 && index < photos!.length - 1 && (
-              <button onClick={() => setIndex((i) => i + 1)} className="text-white text-3xl px-2 hover:opacity-70" aria-label="Next photo">
+              <button onClick={() => setIndex((i) => i + 1)} className="text-white text-3xl px-2 hover:opacity-70 transition-opacity" aria-label="Next photo">
                 ›
               </button>
             )}

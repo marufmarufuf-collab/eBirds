@@ -40,7 +40,7 @@ export default function LinkifiedText({ text }: { text: string }) {
             e.stopPropagation();
             setPendingUrl(null);
           }}
-          className="fixed inset-0 z-[110] bg-black/50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[110] bg-black/50 backdrop-fade flex items-center justify-center p-4"
         >
           <div onClick={(e) => e.stopPropagation()} className="card p-5 max-w-sm w-full enter">
             <p className="text-sm font-medium mb-1">Open this link?</p>

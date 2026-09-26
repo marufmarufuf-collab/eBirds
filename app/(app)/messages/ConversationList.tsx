@@ -134,12 +134,13 @@ export default function ConversationList({
         {conversations.length === 0 && (
           <p className="text-sm text-[var(--muted)] px-1">No conversations yet — say hello to someone below.</p>
         )}
-        {conversations.map((c) => {
+        {conversations.map((c, i) => {
           const active = pathname === `/messages/${c.conversationId}`;
           return (
             <Link
               key={c.conversationId}
               href={`/messages/${c.conversationId}`}
+              style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
               className={`enter flex items-center gap-3 rounded-[12px] px-2.5 py-2.5 transition-colors ${
                 active ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--surface-2)]"
               }`}
@@ -161,11 +162,12 @@ export default function ConversationList({
         <div className="mt-8">
           <h2 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide mb-2 px-1">People you haven't messaged</h2>
           <div className="space-y-0.5">
-            {otherUsers.map((u) => (
+            {otherUsers.map((u, i) => (
               <button
                 key={u.id}
                 onClick={() => openWith(u.id)}
                 disabled={openingId === u.id}
+                style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
                 className="enter flex items-center gap-3 rounded-[12px] px-2.5 py-2 w-full text-left hover:bg-[var(--surface-2)] transition-colors"
               >
                 <Avatar url={u.avatar_url} name={u.username} size={36} />

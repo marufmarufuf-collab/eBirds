@@ -20,7 +20,7 @@ export default function ModalOverlay({ children }: { children: React.ReactNode }
   return (
     <div
       onClick={() => router.back()}
-      className="fixed inset-0 z-[90] bg-black/40 flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 z-[90] bg-black/40 backdrop-fade flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto"
     >
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg mt-10 sm:mt-0 enter">
         <div className="flex justify-end mb-2">

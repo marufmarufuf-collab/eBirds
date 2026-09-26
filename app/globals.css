@@ -176,6 +176,65 @@ button:disabled, [aria-disabled="true"] {
 }
 .hover-lift:hover { transform: translateY(-2px); border-color: var(--accent-2); box-shadow: var(--shadow-md); }
 
+/* Subtle background texture — a single static image, no animation cost,
+   just gives flat color areas a touch more depth. */
+.grain {
+  position: relative;
+}
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Photo viewers (chat images, profile photo gallery) share this same
+   "pop" entrance — scale + fade only, so it's cheap to composite even on
+   low-end phones, and stays consistent across the whole app: opening any
+   photo anywhere should feel like the same interaction. */
+.photo-pop {
+  animation: photo-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes photo-pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.backdrop-fade {
+  animation: backdrop-fade 0.18s ease both;
+}
+@keyframes backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Moving highlight sweep on primary buttons — a transform-only animation
+   on a pseudo-element, only running while hovered, so idle cost is zero. */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: skewX(-20deg) translateX(0);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+.btn-primary:hover:not(:disabled)::after { transform: skewX(-20deg) translateX(330%); }
+
+/* Ring feedback for anything clickable-to-view (avatars, thumbnails) */
+.viewable {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  border-radius: 999px;
+}
+.viewable:hover { box-shadow: 0 0 0 3px var(--accent-soft); transform: translateY(-1px); }
+
 /* Skeleton loading blocks — used instead of a bare spinner where a shape
    of the incoming content is known, so the page never looks "empty". */
 .skeleton {
@@ -190,5 +249,5 @@ button:disabled, [aria-disabled="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }
