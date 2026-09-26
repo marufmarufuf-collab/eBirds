@@ -26,7 +26,15 @@ export default function ProfileMenu({ profile }: { profile: Profile }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 card p-1.5 z-40 enter" style={{ boxShadow: "var(--shadow-lg)" }}>
+        <div
+          className="absolute right-0 mt-2 w-48 p-1.5 z-40 enter"
+          style={{
+            background: "#ffffff",
+            border: "1px solid #f0e2d3",
+            borderRadius: 14,
+            boxShadow: "0 16px 40px -12px rgba(33, 23, 16, 0.28)",
+          }}
+        >
           <button
             type="button"
             onClick={() => {

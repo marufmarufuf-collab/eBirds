@@ -34,7 +34,15 @@ export default function BottomProfilePanel({ profile, collapsed }: { profile: Pr
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-3 mb-2 w-48 card p-1.5 z-40 enter" style={{ boxShadow: "var(--shadow-lg)" }}>
+        <div
+          className="absolute bottom-full left-3 mb-2 w-48 p-1.5 z-40 enter"
+          style={{
+            background: "#ffffff",
+            border: "1px solid #f0e2d3",
+            borderRadius: 14,
+            boxShadow: "0 16px 40px -12px rgba(33, 23, 16, 0.28)",
+          }}
+        >
           <button onClick={() => go("/profile")} className="w-full text-left px-3 py-2 text-sm rounded-[8px] hover:bg-[var(--surface-2)]">
             Profile
           </button>
