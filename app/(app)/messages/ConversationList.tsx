@@ -14,6 +14,7 @@ import type { Profile, Message } from "@/types/database";
 function previewText(m: Message | null, mine: boolean): string {
   if (!m) return "Say hello 👋";
   const prefix = mine ? "You: " : "";
+  if (m.deleted_at) return "Message deleted";
   if (m.audio_url) return `${prefix}🎤 Voice message`;
   if (m.image_url) return `${prefix}📷 Photo${m.content.trim() ? ` · ${m.content.trim()}` : ""}`;
   return `${prefix}${m.content}`;

@@ -2,16 +2,29 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { sendMessage, uploadMessagePhoto, uploadVoiceMessage } from "@/lib/actions/messaging";
+import {
+  sendMessage,
+  uploadMessagePhoto,
+  uploadVoiceMessage,
+  editMessage,
+  deleteMessageForMe,
+  deleteMessageForEveryone,
+  markMessagesRead,
+} from "@/lib/actions/messaging";
 import { dayLabel, timeLabel } from "@/lib/format-date";
 import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import Spinner from "@/components/Spinner";
-import { CameraIcon, MicIcon, TrashIcon, SendIcon } from "@/components/icons";
+import { CameraIcon, MicIcon, TrashIcon, SendIcon, ClockIcon, XIcon } from "@/components/icons";
 import LinkifiedText from "@/components/LinkifiedText";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble";
+import MessageActions from "@/components/MessageActions";
+import { VoicePlayerProvider } from "@/lib/voice-player-context";
+import MiniVoicePlayerBar from "@/components/MiniVoicePlayerBar";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
+
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export default function ChatView({
   conversationId,
@@ -35,6 +48,7 @@ export default function ChatView({
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [voiceSending, setVoiceSending] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -57,6 +71,17 @@ export default function ChatView({
         (payload) => {
           const incoming = payload.new as Message;
           setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+          // A new message from the other person, seen while the chat is
+          // open, counts as read immediately.
+          if (incoming.sender_id !== currentUserId) markMessagesRead(conversationId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
         }
       )
       .subscribe();
@@ -64,7 +89,7 @@ export default function ChatView({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,13 +104,18 @@ export default function ChatView({
   }, []);
 
   function attachFile(file: File) {
-    if (!file.type.startsWith("image/")) return;
+    const looksLikeImage = file.type.startsWith("image/") || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(file.name);
+    if (!looksLikeImage) {
+      alert("That file doesn't look like an image.");
+      return;
+    }
     setPendingPhoto({ file, previewUrl: URL.createObjectURL(file) });
   }
 
   function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) attachFile(file);
+    else alert("No photo was selected — please try again.");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -187,6 +217,8 @@ export default function ChatView({
         image_url: null,
         audio_url: result.url,
         audio_duration: durationSeconds,
+        edited_at: null,
+        deleted_at: null,
         created_at: new Date().toISOString(),
         read_at: null,
       };
@@ -203,7 +235,60 @@ export default function ChatView({
     }
   }
 
+  async function handleSaveEdit() {
+    const id = editingId;
+    const content = draft.trim();
+    if (!id || !content) return;
+    setSending(true);
+    try {
+      const result = await editMessage(id, content);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      if (result.message) {
+        setMessages((prev) => prev.map((m) => (m.id === id ? result.message! : m)));
+      }
+      setEditingId(null);
+      setDraft("");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function startEdit(m: Message) {
+    setEditingId(m.id);
+    setDraft(m.content.trim());
+    setPendingPhoto(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setDraft("");
+  }
+
+  async function handleDeleteForMe(id: string) {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    const result = await deleteMessageForMe(id);
+    if (result.error) alert(result.error);
+  }
+
+  async function handleDeleteForEveryone(id: string) {
+    // Optimistic — the realtime UPDATE will confirm it for both sides.
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? { ...m, deleted_at: new Date().toISOString(), content: " ", image_url: null, audio_url: null, audio_duration: null }
+          : m
+      )
+    );
+    const result = await deleteMessageForEveryone(id);
+    if (result.error) alert(result.error);
+  }
+
   async function handleSend() {
+    if (editingId) return handleSaveEdit();
+
     const content = draft.trim();
     if (!content && !pendingPhoto) return;
     if (sending) return;
@@ -233,6 +318,8 @@ export default function ChatView({
         image_url: imageUrl ?? null,
         audio_url: null,
         audio_duration: null,
+        edited_at: null,
+        deleted_at: null,
         created_at: new Date().toISOString(),
         read_at: null,
       };
@@ -268,142 +355,204 @@ export default function ChatView({
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)]">
-        <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
-        <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1">
-          <Avatar url={other.avatar_url} name={other.username} size={36} />
-          <div className="min-w-0">
-            <p className="font-medium text-sm truncate">{other.full_name || other.username}</p>
-            <p className="text-xs text-[var(--muted)] truncate">@{other.username}</p>
-          </div>
-        </Link>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[var(--paper)]">
-        <p className="text-center text-xs text-[var(--muted)] mb-3">
-          Conversation started {dayLabel(conversationStartedAt)}
-        </p>
-
-        {grouped.map((group) => (
-          <div key={group.label}>
-            <div className="flex justify-center my-3">
-              <span className="text-xs text-[var(--muted)] bg-[var(--surface)] border px-2.5 py-0.5 rounded-full shadow-sm">
-                {group.label}
-              </span>
+    <VoicePlayerProvider>
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)] shrink-0">
+          <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
+          <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1">
+            <Avatar url={other.avatar_url} name={other.username} size={36} />
+            <div className="min-w-0">
+              <p className="font-medium text-sm truncate">{other.full_name || other.username}</p>
+              <p className="text-xs text-[var(--muted)] truncate">@{other.username}</p>
             </div>
-            {group.items.map((m) => {
-              const mine = m.sender_id === currentUserId;
-              return (
-                <div key={m.id} className={`enter flex mb-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] px-3 py-2 text-sm shadow-sm ${
-                      mine
-                        ? "bg-[var(--accent)] text-white rounded-2xl rounded-br-md"
-                        : "bg-[var(--surface)] border rounded-2xl rounded-bl-md"
-                    }`}
-                  >
-                    {m.image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={m.image_url}
-                        alt="attachment"
-                        className="rounded-lg max-w-full mb-1 cursor-pointer transition-transform hover:scale-[1.015]"
-                        onClick={() => setLightbox(m.image_url)}
+          </Link>
+        </div>
+
+        <MiniVoicePlayerBar />
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[var(--paper)]">
+          <p className="text-center text-xs text-[var(--muted)] mb-3">
+            Conversation started {dayLabel(conversationStartedAt)}
+          </p>
+
+          {grouped.map((group) => (
+            <div key={group.label}>
+              <div className="flex justify-center my-3">
+                <span className="text-xs text-[var(--muted)] bg-[var(--surface)] border px-2.5 py-0.5 rounded-full shadow-sm">
+                  {group.label}
+                </span>
+              </div>
+              {group.items.map((m) => {
+                const mine = m.sender_id === currentUserId;
+                const isLocal = m.id.startsWith("local-");
+                const isDeleted = !!m.deleted_at;
+                const canEdit =
+                  mine &&
+                  !isLocal &&
+                  !isDeleted &&
+                  !m.image_url &&
+                  !m.audio_url &&
+                  Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS;
+
+                return (
+                  <div key={m.id} className={`enter group flex items-center gap-1 mb-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+                    {!isDeleted && (
+                      <MessageActions
+                        mine={mine}
+                        canEdit={canEdit}
+                        align={mine ? "right" : "left"}
+                        onEdit={() => startEdit(m)}
+                        onDeleteForMe={() => handleDeleteForMe(m.id)}
+                        onDeleteForEveryone={() => handleDeleteForEveryone(m.id)}
                       />
                     )}
-                    {m.audio_url && (
-                      <VoiceMessageBubble url={m.audio_url} duration={m.audio_duration} mine={mine} />
-                    )}
-                    {m.content.trim() && <LinkifiedText text={m.content} />}
-                    <div className={`flex items-center gap-1 text-[10px] mt-1 ${mine ? "text-white/75 justify-end" : "text-[var(--muted)]"}`}>
-                      {timeLabel(m.created_at)}
-                      {mine && !m.id.startsWith("local-") && (
-                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 8.5 4.5 12 9 5" />
-                          <path d="M6.5 8.5 10 12l4.5-8" />
-                        </svg>
+                    <div
+                      className={`max-w-[75%] px-3 py-2 text-sm shadow-sm ${
+                        mine
+                          ? "bg-[var(--accent)] text-white rounded-2xl rounded-br-md"
+                          : "bg-[var(--surface)] border rounded-2xl rounded-bl-md"
+                      }`}
+                    >
+                      {isDeleted ? (
+                        <span className={`italic ${mine ? "text-white/70" : "text-[var(--muted)]"}`}>
+                          This message was deleted
+                        </span>
+                      ) : (
+                        <>
+                          {m.image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={m.image_url}
+                              alt="attachment"
+                              className="rounded-lg max-w-full mb-1 cursor-pointer transition-transform hover:scale-[1.015]"
+                              onClick={() => setLightbox(m.image_url)}
+                            />
+                          )}
+                          {m.audio_url && (
+                            <VoiceMessageBubble id={m.id} url={m.audio_url} duration={m.audio_duration} mine={mine} />
+                          )}
+                          {m.content.trim() && <LinkifiedText text={m.content} />}
+                        </>
                       )}
+                      <div className={`flex items-center gap-1 text-[10px] mt-1 ${mine ? "text-white/75 justify-end" : "text-[var(--muted)]"}`}>
+                        {!isDeleted && m.edited_at && <span>edited</span>}
+                        {timeLabel(m.created_at)}
+                        {mine && (
+                          <>
+                            {isLocal ? (
+                              <ClockIcon />
+                            ) : m.read_at ? (
+                              <svg viewBox="0 0 16 16" width="14" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 8.5 4.5 12 9 5" />
+                                <path d="M6.5 8.5 10 12l4.5-8" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 8.5 6.5 12 13 5" />
+                              </svg>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      {pendingPhoto && (
-        <div className="px-3 pt-3 flex items-center gap-2">
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={pendingPhoto.previewUrl} alt="preview" className="h-16 w-16 object-cover rounded-lg border" />
-            <button
-              onClick={() => setPendingPhoto(null)}
-              className="absolute -top-2 -right-2 bg-[var(--ink)] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
-              aria-label="Remove photo"
-            >
-              ×
-            </button>
-          </div>
-          <span className="text-xs text-[var(--muted)]">Add a caption and send, or send as-is.</span>
+                );
+              })}
+            </div>
+          ))}
+          <div ref={bottomRef} />
         </div>
-      )}
 
-      <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center safe-bottom">
-        {recording ? (
-          <>
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--danger)] animate-pulse shrink-0" aria-hidden />
-            <span className="text-sm font-medium tabular-nums shrink-0">
-              {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
-            </span>
-            <span className="flex-1 min-w-0 text-sm text-[var(--muted)] truncate">Recording…</span>
-            <button onClick={cancelRecording} className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Cancel recording">
-              <TrashIcon />
+        {editingId && (
+          <div className="px-3 pt-2 flex items-center gap-2 text-sm text-[var(--accent-dark)] bg-[var(--accent-soft)]">
+            <span className="flex-1 py-1.5">Editing message</span>
+            <button onClick={cancelEdit} className="btn btn-ghost !p-1.5 !rounded-full" aria-label="Cancel edit">
+              <XIcon />
             </button>
-            <button onClick={finishRecording} className="btn btn-primary !rounded-full shrink-0 !px-4" aria-label="Send voice message">
-              <SendIcon />
-            </button>
-          </>
-        ) : (
-          <>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
-            <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Send photo" aria-disabled={uploading}>
-              {uploading ? <Spinner /> : <CameraIcon />}
-            </label>
-            <input
-              className="input flex-1 min-w-0"
-              placeholder="Message…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onPaste={handlePaste}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-            />
-            {!draft.trim() && !pendingPhoto ? (
-              <button
-                onClick={startRecording}
-                disabled={voiceSending}
-                className="btn btn-primary !rounded-full shrink-0 !px-3.5"
-                aria-label="Record a voice message"
-              >
-                {voiceSending ? <Spinner /> : <MicIcon />}
-              </button>
-            ) : (
-              <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full shrink-0 !px-4">
-                {sending && <Spinner />} Send
-              </button>
-            )}
-          </>
+          </div>
         )}
-      </div>
 
-      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
-    </div>
+        {pendingPhoto && !editingId && (
+          <div className="px-3 pt-3 flex items-center gap-2">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={pendingPhoto.previewUrl} alt="preview" className="h-16 w-16 object-cover rounded-lg border" />
+              <button
+                onClick={() => setPendingPhoto(null)}
+                className="absolute -top-2 -right-2 bg-[var(--ink)] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                aria-label="Remove photo"
+              >
+                ×
+              </button>
+            </div>
+            <span className="text-xs text-[var(--muted)]">Add a caption and send, or send as-is.</span>
+          </div>
+        )}
+
+        <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center safe-bottom">
+          {recording ? (
+            <>
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--danger)] animate-pulse shrink-0" aria-hidden />
+              <span className="text-sm font-medium tabular-nums shrink-0">
+                {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
+              </span>
+              <span className="flex-1 min-w-0 text-sm text-[var(--muted)] truncate">Recording…</span>
+              <button onClick={cancelRecording} className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Cancel recording">
+                <TrashIcon />
+              </button>
+              <button onClick={finishRecording} className="btn btn-primary !rounded-full shrink-0 !px-4" aria-label="Send voice message">
+                <SendIcon />
+              </button>
+            </>
+          ) : (
+            <>
+              {!editingId && (
+                <>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
+                  <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Send photo" aria-disabled={uploading}>
+                    {uploading ? <Spinner /> : <CameraIcon />}
+                  </label>
+                </>
+              )}
+              <input
+                className="input flex-1 min-w-0"
+                placeholder={editingId ? "Edit message…" : "Message…"}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onPaste={handlePaste}
+                autoFocus={!!editingId}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                  if (e.key === "Escape" && editingId) cancelEdit();
+                }}
+              />
+              {editingId ? (
+                <button onClick={handleSend} disabled={sending || !draft.trim()} className="btn btn-primary !rounded-full shrink-0 !px-4">
+                  {sending && <Spinner />} Save
+                </button>
+              ) : !draft.trim() && !pendingPhoto ? (
+                <button
+                  onClick={startRecording}
+                  disabled={voiceSending}
+                  className="btn btn-primary !rounded-full shrink-0 !px-3.5"
+                  aria-label="Record a voice message"
+                >
+                  {voiceSending ? <Spinner /> : <MicIcon />}
+                </button>
+              ) : (
+                <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full shrink-0 !px-4">
+                  {sending && <Spinner />} Send
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      </div>
+    </VoicePlayerProvider>
   );
 }

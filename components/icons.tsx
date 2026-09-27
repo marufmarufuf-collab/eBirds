@@ -94,6 +94,42 @@ export function PauseIcon({ className = "" }: IconProps) {
   );
 }
 
+export function XIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+    </svg>
+  );
+}
+
+export function EditIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3.5a2.1 2.1 0 0 1 3 3L8.5 18 4 19l1-4.5L17 3.5Z" />
+    </svg>
+  );
+}
+
+export function KebabIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={`${base} ${className}`} fill="currentColor">
+      <circle cx="12" cy="5.5" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="18.5" r="1.6" />
+    </svg>
+  );
+}
+
+export function ClockIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" className={className} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 5v3.2l2.2 1.3" />
+    </svg>
+  );
+}
+
 export function SearchIcon({ className = "" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

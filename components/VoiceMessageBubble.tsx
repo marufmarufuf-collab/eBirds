@@ -1,101 +1,106 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useVoicePlayer } from "@/lib/voice-player-context";
 import { PlayIcon, PauseIcon } from "./icons";
 
 function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) seconds = 0;
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function VoiceMessageBubble({ url, duration, mine }: { url: string; duration: number | null; mine: boolean }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0); // 0-1
-  const [currentTime, setCurrentTime] = useState(0);
-  const [knownDuration, setKnownDuration] = useState(duration ?? 0);
+export default function VoiceMessageBubble({
+  id,
+  url,
+  duration,
+  mine,
+}: {
+  id: string;
+  url: string;
+  duration: number | null;
+  mine: boolean;
+}) {
+  const { activeId, playing, currentTime, duration: liveDuration, play, pause, seek } = useVoicePlayer();
+  const isActive = activeId === id;
+  const barRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [dragRatio, setDragRatio] = useState(0);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    function onTimeUpdate() {
-      if (!audio || !audio.duration || isNaN(audio.duration)) return;
-      setCurrentTime(audio.currentTime);
-      setProgress(audio.currentTime / audio.duration);
-    }
-    function onLoadedMetadata() {
-      if (!audio) return;
-      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-        setKnownDuration(audio.duration);
-      }
-    }
-    function onEnded() {
-      setPlaying(false);
-      setProgress(0);
-      setCurrentTime(0);
-    }
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, []);
+  const knownDuration = (isActive && liveDuration) || duration || 0;
+  const shownRatio = dragging ? dragRatio : isActive && knownDuration ? currentTime / knownDuration : 0;
+  const shownTime = dragging ? dragRatio * knownDuration : isActive ? currentTime : 0;
 
   function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
+    if (isActive && playing) pause();
+    else play(id, url);
+  }
+
+  function ratioFromEvent(e: React.PointerEvent<HTMLDivElement>): number {
+    const rect = barRef.current!.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDragging(true);
+    setDragRatio(ratioFromEvent(e));
+  }
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging) return;
+    setDragRatio(ratioFromEvent(e));
+  }
+  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging || !knownDuration) {
+      setDragging(false);
+      return;
+    }
+    const ratio = ratioFromEvent(e);
+    setDragging(false);
+    if (isActive) {
+      seek(ratio * knownDuration);
     } else {
-      audio.play();
-      setPlaying(true);
+      // Not the active track yet — start it, then jump to the tapped point
+      // once its metadata is loaded.
+      play(id, url);
+      setTimeout(() => seek(ratio * knownDuration), 60);
     }
   }
 
-  function seek(e: React.MouseEvent<HTMLDivElement>) {
-    const audio = audioRef.current;
-    if (!audio || !knownDuration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * knownDuration;
-    setProgress(ratio);
-    setCurrentTime(audio.currentTime);
-  }
-
-  const displayTime = playing || currentTime > 0 ? currentTime : knownDuration;
-
   return (
-    <div className="flex items-center gap-2.5 min-w-[180px]">
-      <audio ref={audioRef} src={url} preload="metadata" />
+    <div className="flex items-center gap-2.5 min-w-[190px]">
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "Pause" : "Play"}
+        aria-label={isActive && playing ? "Pause" : "Play"}
         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
           mine ? "bg-white/20 hover:bg-white/30" : "bg-[var(--accent-soft)] hover:bg-[var(--accent-soft)]"
         }`}
       >
-        {playing ? <PauseIcon /> : <PlayIcon className={mine ? "" : "text-[var(--accent-dark)]"} />}
+        {isActive && playing ? <PauseIcon /> : <PlayIcon className={mine ? "" : "text-[var(--accent-dark)]"} />}
       </button>
       <div className="flex-1 min-w-0">
         <div
-          onClick={seek}
-          className={`h-1.5 rounded-full cursor-pointer relative ${mine ? "bg-white/25" : "bg-[var(--line-strong)]"}`}
+          ref={barRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          style={{ touchAction: "none" }}
+          className={`h-2 rounded-full cursor-pointer relative ${mine ? "bg-white/25" : "bg-[var(--line-strong)]"}`}
         >
           <div
             className={`h-full rounded-full ${mine ? "bg-white" : "bg-[var(--accent)]"}`}
-            style={{ width: `${progress * 100}%` }}
+            style={{ width: `${shownRatio * 100}%`, transition: dragging ? "none" : "width 0.1s linear" }}
+          />
+          <div
+            className={`absolute top-1/2 w-3 h-3 rounded-full -translate-y-1/2 -translate-x-1/2 shadow ${mine ? "bg-white" : "bg-[var(--accent)]"}`}
+            style={{ left: `${shownRatio * 100}%` }}
           />
         </div>
-        <p className={`text-[10px] mt-1 ${mine ? "text-white/75" : "text-[var(--muted)]"}`}>
-          {formatTime(displayTime)}
+        <p className={`text-[10px] mt-1.5 ${mine ? "text-white/75" : "text-[var(--muted)]"}`}>
+          {formatTime(shownTime)}
+          {knownDuration ? ` / ${formatTime(knownDuration)}` : ""}
         </p>
       </div>
     </div>

@@ -34,6 +34,8 @@ export type Message = {
   image_url: string | null;
   audio_url: string | null;
   audio_duration: number | null;
+  edited_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   read_at: string | null;
 };
