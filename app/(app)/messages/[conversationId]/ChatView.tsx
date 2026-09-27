@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { sendMessage, uploadMessagePhoto } from "@/lib/actions/messaging";
+import { sendMessage, uploadMessagePhoto, uploadVoiceMessage } from "@/lib/actions/messaging";
 import { dayLabel, timeLabel } from "@/lib/format-date";
 import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import Spinner from "@/components/Spinner";
-import { CameraIcon } from "@/components/icons";
+import { CameraIcon, MicIcon, TrashIcon, SendIcon } from "@/components/icons";
 import LinkifiedText from "@/components/LinkifiedText";
+import VoiceMessageBubble from "@/components/VoiceMessageBubble";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
 
@@ -31,8 +32,19 @@ export default function ChatView({
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [voiceSending, setVoiceSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cancelledRef = useRef(false);
+  const recordSecondsRef = useRef(0);
+
+  const MAX_RECORD_SECONDS = 600; // 10 minutes — sane cap, not a trim/edit limit
 
   // Live updates — a realtime subscription, not a page refresh or a poll.
   useEffect(() => {
@@ -58,6 +70,14 @@ export default function ChatView({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  // Stop the mic if someone navigates away mid-recording.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
   function attachFile(file: File) {
     if (!file.type.startsWith("image/")) return;
     setPendingPhoto({ file, previewUrl: URL.createObjectURL(file) });
@@ -77,6 +97,110 @@ export default function ChatView({
     if (!file) return;
     e.preventDefault();
     attachFile(file);
+  }
+
+  function pickMimeType(): string {
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+    return candidates.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(t)) ?? "";
+  }
+
+  async function startRecording() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("Voice messages aren't supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      cancelledRef.current = false;
+
+      const mimeType = pickMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (timerRef.current) clearInterval(timerRef.current);
+
+        if (cancelledRef.current || chunksRef.current.length === 0) {
+          chunksRef.current = [];
+          return;
+        }
+
+        const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
+        const durationSeconds = recordSecondsRef.current;
+        chunksRef.current = [];
+        await handleSendVoice(blob, durationSeconds);
+      };
+
+      recorder.start();
+      setRecording(true);
+      setRecordSeconds(0);
+      recordSecondsRef.current = 0;
+      timerRef.current = setInterval(() => {
+        setRecordSeconds((s) => {
+          const next = s + 1;
+          recordSecondsRef.current = next;
+          if (next >= MAX_RECORD_SECONDS) finishRecording();
+          return next;
+        });
+      }, 1000);
+    } catch {
+      alert("Couldn't access your microphone. Check your browser's permission settings.");
+    }
+  }
+
+  function cancelRecording() {
+    cancelledRef.current = true;
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  function finishRecording() {
+    cancelledRef.current = false;
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  async function handleSendVoice(blob: Blob, durationSeconds: number) {
+    setVoiceSending(true);
+    try {
+      const fd = new FormData();
+      fd.set("audio", blob, "voice-message");
+      const result = await uploadVoiceMessage(fd);
+      if (result.error || !result.url) {
+        alert(result.error || "Could not upload voice message.");
+        return;
+      }
+
+      const optimisticId = `local-${Date.now()}`;
+      const optimistic: Message = {
+        id: optimisticId,
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        content: " ",
+        image_url: null,
+        audio_url: result.url,
+        audio_duration: durationSeconds,
+        created_at: new Date().toISOString(),
+        read_at: null,
+      };
+      setMessages((prev) => [...prev, optimistic]);
+
+      const real = await sendMessage(conversationId, "", { audioUrl: result.url, audioDuration: durationSeconds });
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
+        if (withoutOptimistic.some((m) => m.id === real.id)) return withoutOptimistic;
+        return [...withoutOptimistic, real];
+      });
+    } finally {
+      setVoiceSending(false);
+    }
   }
 
   async function handleSend() {
@@ -107,6 +231,8 @@ export default function ChatView({
         sender_id: currentUserId,
         content: content || " ",
         image_url: imageUrl ?? null,
+        audio_url: null,
+        audio_duration: null,
         created_at: new Date().toISOString(),
         read_at: null,
       };
@@ -114,7 +240,7 @@ export default function ChatView({
       setDraft("");
       setPendingPhoto(null);
 
-      const real = await sendMessage(conversationId, content, imageUrl ?? null);
+      const real = await sendMessage(conversationId, content, { imageUrl: imageUrl ?? null });
 
       // Swap the placeholder out for the confirmed row. If the realtime
       // subscription already delivered this same row in the meantime
@@ -186,6 +312,9 @@ export default function ChatView({
                         onClick={() => setLightbox(m.image_url)}
                       />
                     )}
+                    {m.audio_url && (
+                      <VoiceMessageBubble url={m.audio_url} duration={m.audio_duration} mine={mine} />
+                    )}
                     {m.content.trim() && <LinkifiedText text={m.content} />}
                     <div className={`flex items-center gap-1 text-[10px] mt-1 ${mine ? "text-white/75 justify-end" : "text-[var(--muted)]"}`}>
                       {timeLabel(m.created_at)}
@@ -223,26 +352,55 @@ export default function ChatView({
       )}
 
       <div className="p-3 border-t bg-[var(--surface)] flex gap-2 items-center safe-bottom">
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
-        <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Send photo" aria-disabled={uploading}>
-          {uploading ? <Spinner /> : <CameraIcon />}
-        </label>
-        <input
-          className="input flex-1 min-w-0"
-          placeholder="Message…"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onPaste={handlePaste}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-        />
-        <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full shrink-0 !px-4">
-          {sending && <Spinner />} Send
-        </button>
+        {recording ? (
+          <>
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--danger)] animate-pulse shrink-0" aria-hidden />
+            <span className="text-sm font-medium tabular-nums shrink-0">
+              {Math.floor(recordSeconds / 60)}:{(recordSeconds % 60).toString().padStart(2, "0")}
+            </span>
+            <span className="flex-1 min-w-0 text-sm text-[var(--muted)] truncate">Recording…</span>
+            <button onClick={cancelRecording} className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Cancel recording">
+              <TrashIcon />
+            </button>
+            <button onClick={finishRecording} className="btn btn-primary !rounded-full shrink-0 !px-4" aria-label="Send voice message">
+              <SendIcon />
+            </button>
+          </>
+        ) : (
+          <>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" id="photo-input" onChange={handlePhotoPick} />
+            <label htmlFor="photo-input" className="btn btn-ghost !px-3 !rounded-full shrink-0" aria-label="Send photo" aria-disabled={uploading}>
+              {uploading ? <Spinner /> : <CameraIcon />}
+            </label>
+            <input
+              className="input flex-1 min-w-0"
+              placeholder="Message…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onPaste={handlePaste}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            {!draft.trim() && !pendingPhoto ? (
+              <button
+                onClick={startRecording}
+                disabled={voiceSending}
+                className="btn btn-primary !rounded-full shrink-0 !px-3.5"
+                aria-label="Record a voice message"
+              >
+                {voiceSending ? <Spinner /> : <MicIcon />}
+              </button>
+            ) : (
+              <button onClick={handleSend} disabled={sending || (!draft.trim() && !pendingPhoto)} className="btn btn-primary !rounded-full shrink-0 !px-4">
+                {sending && <Spinner />} Send
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}

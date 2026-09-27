@@ -116,11 +116,21 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return data as Message[];
 }
 
-export async function sendMessage(conversationId: string, content: string, imageUrl?: string | null): Promise<Message> {
+export type SendMessageOptions = {
+  imageUrl?: string | null;
+  audioUrl?: string | null;
+  audioDuration?: number | null;
+};
+
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  options?: SendMessageOptions
+): Promise<Message> {
   const supabase = await createClient();
   const userId = await getVerifiedUserId(supabase);
   if (!userId) throw new Error("Not signed in.");
-  if (!content.trim() && !imageUrl) throw new Error("Nothing to send.");
+  if (!content.trim() && !options?.imageUrl && !options?.audioUrl) throw new Error("Nothing to send.");
 
   const { data, error } = await supabase
     .from("messages")
@@ -128,7 +138,9 @@ export async function sendMessage(conversationId: string, content: string, image
       conversation_id: conversationId,
       sender_id: userId,
       content: content.trim() || " ",
-      image_url: imageUrl ?? null,
+      image_url: options?.imageUrl ?? null,
+      audio_url: options?.audioUrl ?? null,
+      audio_duration: options?.audioDuration ?? null,
     })
     .select()
     .single();
@@ -151,6 +163,28 @@ export async function uploadMessagePhoto(formData: FormData): Promise<{ url?: st
   const path = `${userId}/${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage.from("message-attachments").upload(path, file);
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: pub } = supabase.storage.from("message-attachments").getPublicUrl(path);
+  return { url: pub.publicUrl };
+}
+
+export async function uploadVoiceMessage(formData: FormData): Promise<{ url?: string; error?: string }> {
+  const supabase = await createClient();
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return { error: "Not signed in." };
+
+  const file = formData.get("audio") as File | null;
+  if (!file || file.size === 0) return { error: "No recording found." };
+  if (!file.type.startsWith("audio/")) return { error: "File must be audio." };
+  if (file.size > 15 * 1024 * 1024) return { error: "Recording is too long." };
+
+  const ext = file.type.includes("mp4") ? "m4a" : file.type.includes("ogg") ? "ogg" : "webm";
+  const path = `${userId}/voice-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("message-attachments")
+    .upload(path, file, { contentType: file.type });
   if (uploadError) return { error: uploadError.message };
 
   const { data: pub } = supabase.storage.from("message-attachments").getPublicUrl(path);
