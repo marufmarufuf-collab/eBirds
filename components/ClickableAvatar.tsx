@@ -24,7 +24,7 @@ export default function ClickableAvatar({
       <button type="button" onClick={() => setOpen(true)} aria-label="View profile photo" className="viewable inline-flex">
         <Avatar url={url} name={name} size={size} />
       </button>
-      {open && <PhotoGalleryViewer userId={userId} isOwn={isOwn} onClose={() => setOpen(false)} />}
+      {open && <PhotoGalleryViewer userId={userId} isOwn={isOwn} currentUrl={url} onClose={() => setOpen(false)} />}
     </>
   );
 }
