@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   sendMessage,
-  uploadMessagePhoto,
-  uploadVoiceMessage,
   editMessage,
   deleteMessageForMe,
   deleteMessageForEveryone,
   markMessagesRead,
 } from "@/lib/actions/messaging";
 import { dayLabel, timeLabel } from "@/lib/format-date";
+import { compressImage } from "@/lib/image-compress";
+import { uploadToBucket } from "@/lib/storage-upload";
 import Avatar from "@/components/Avatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import Spinner from "@/components/Spinner";
@@ -103,19 +103,21 @@ export default function ChatView({
     };
   }, []);
 
-  function attachFile(file: File) {
+  // Shrinks the photo right away (camera photos are huge) and keeps our own
+  // in-memory copy, so the picker's temporary file can't go stale before send.
+  async function attachFile(file: File) {
     const looksLikeImage = file.type.startsWith("image/") || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(file.name);
     if (!looksLikeImage) {
       alert("That file doesn't look like an image.");
       return;
     }
-    setPendingPhoto({ file, previewUrl: URL.createObjectURL(file) });
+    const small = await compressImage(file);
+    setPendingPhoto({ file: small, previewUrl: URL.createObjectURL(small) });
   }
 
-  function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) attachFile(file);
-    else alert("No photo was selected — please try again.");
+    if (file) await attachFile(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -199,37 +201,41 @@ export default function ChatView({
 
   async function handleSendVoice(blob: Blob, durationSeconds: number) {
     setVoiceSending(true);
-    try {
-      const fd = new FormData();
-      fd.set("audio", blob, "voice-message");
-      const result = await uploadVoiceMessage(fd);
-      if (result.error || !result.url) {
-        alert(result.error || "Could not upload voice message.");
-        return;
-      }
-
-      const optimisticId = `local-${Date.now()}`;
-      const optimistic: Message = {
+    const optimisticId = `local-${Date.now()}`;
+    const localUrl = URL.createObjectURL(blob);
+    // Shows up instantly (clock icon) while it uploads in the background.
+    setMessages((prev) => [
+      ...prev,
+      {
         id: optimisticId,
         conversation_id: conversationId,
         sender_id: currentUserId,
         content: " ",
         image_url: null,
-        audio_url: result.url,
+        audio_url: localUrl,
         audio_duration: durationSeconds,
         edited_at: null,
         deleted_at: null,
         created_at: new Date().toISOString(),
         read_at: null,
-      };
-      setMessages((prev) => [...prev, optimistic]);
+      },
+    ]);
 
-      const real = await sendMessage(conversationId, "", { audioUrl: result.url, audioDuration: durationSeconds });
+    try {
+      const baseType = (blob.type || "audio/webm").split(";")[0];
+      const ext = baseType.includes("mp4") ? "m4a" : baseType.includes("ogg") ? "ogg" : "webm";
+      const up = await uploadToBucket("message-attachments", `${currentUserId}/voice-${Date.now()}.${ext}`, blob, baseType);
+      if (up.error || !up.url) throw new Error(up.error || "Could not upload voice message.");
+
+      const real = await sendMessage(conversationId, "", { audioUrl: up.url, audioDuration: durationSeconds });
       setMessages((prev) => {
         const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
         if (withoutOptimistic.some((m) => m.id === real.id)) return withoutOptimistic;
         return [...withoutOptimistic, real];
       });
+    } catch (e) {
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      alert(e instanceof Error ? e.message : "Could not send the voice message.");
     } finally {
       setVoiceSending(false);
     }
@@ -290,55 +296,66 @@ export default function ChatView({
     if (editingId) return handleSaveEdit();
 
     const content = draft.trim();
-    if (!content && !pendingPhoto) return;
+    const photo = pendingPhoto;
+    if (!content && !photo) return;
     if (sending) return;
     setSending(true);
-    try {
-      let imageUrl: string | undefined;
-      if (pendingPhoto) {
-        setUploading(true);
-        const fd = new FormData();
-        fd.set("photo", pendingPhoto.file);
-        const result = await uploadMessagePhoto(fd);
-        setUploading(false);
-        if (result.error) {
-          alert(result.error);
-          setSending(false);
-          return;
-        }
-        imageUrl = result.url;
-      }
-      // Optimistic append so the sender sees it instantly, not after a round trip.
-      const optimisticId = `local-${Date.now()}`;
-      const optimistic: Message = {
+
+    // Optimistic: appears at once (with the photo preview and a clock icon)
+    // instead of waiting for the upload.
+    const optimisticId = `local-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
         id: optimisticId,
         conversation_id: conversationId,
         sender_id: currentUserId,
         content: content || " ",
-        image_url: imageUrl ?? null,
+        image_url: photo?.previewUrl ?? null,
         audio_url: null,
         audio_duration: null,
         edited_at: null,
         deleted_at: null,
         created_at: new Date().toISOString(),
         read_at: null,
-      };
-      setMessages((prev) => [...prev, optimistic]);
-      setDraft("");
-      setPendingPhoto(null);
+      },
+    ]);
+    setDraft("");
+    setPendingPhoto(null);
 
-      const real = await sendMessage(conversationId, content, { imageUrl: imageUrl ?? null });
+    try {
+      let imageUrl: string | null = null;
+      if (photo) {
+        setUploading(true);
+        const ext = photo.file.type === "image/jpeg" ? "jpg" : photo.file.name.split(".").pop() || "jpg";
+        const up = await uploadToBucket(
+          "message-attachments",
+          `${currentUserId}/${Date.now()}.${ext}`,
+          photo.file,
+          photo.file.type || "image/jpeg"
+        );
+        if (up.error || !up.url) throw new Error(up.error || "Could not upload the photo.");
+        imageUrl = up.url;
+      }
 
-      // Swap the placeholder out for the confirmed row. If the realtime
-      // subscription already delivered this same row in the meantime
-      // (a race with the line above), don't add it a second time — that
-      // was the cause of messages briefly appearing twice.
+      const real = await sendMessage(conversationId, content, { imageUrl });
+
+      // Swap the placeholder for the confirmed row. If realtime already
+      // delivered it, don't add it twice.
       setMessages((prev) => {
         const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
         if (withoutOptimistic.some((m) => m.id === real.id)) return withoutOptimistic;
         return [...withoutOptimistic, real];
       });
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+    } catch (e) {
+      // Nothing is lost: put the text and photo back so they can retry.
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      setDraft(content);
+      if (photo) setPendingPhoto(photo);
+      alert(e instanceof Error ? e.message : "Could not send the message.");
     } finally {
+      setUploading(false);
       setSending(false);
     }
   }

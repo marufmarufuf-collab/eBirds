@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useTransition } from "react";
 import ClickableAvatar from "./ClickableAvatar";
 import Spinner from "./Spinner";
+import { compressImage } from "@/lib/image-compress";
 import type { ActionState } from "@/lib/actions/auth";
 
 const initialState: ActionState = {};
@@ -27,6 +28,20 @@ export default function AvatarUploadForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [, startTransition] = useTransition();
+
+  // Shrink the photo first (camera photos are several MB), then submit it
+  // ourselves so the smaller file is what actually gets uploaded.
+  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file || !formRef.current) return;
+    const small = await compressImage(file);
+    const fd = new FormData(formRef.current);
+    fd.set("avatar", small);
+    input.value = "";
+    startTransition(() => formAction(fd));
+  }
 
   return (
     <form ref={formRef} action={formAction} className="card p-6 flex items-center gap-4">
@@ -43,9 +58,7 @@ export default function AvatarUploadForm({
           accept="image/*"
           className="hidden"
           disabled={pending}
-          onChange={(e) => {
-            if (e.target.files?.[0]) formRef.current?.requestSubmit();
-          }}
+          onChange={handleChange}
         />
         {state.error && <p className="text-sm text-[var(--danger)] mt-1">{state.error}</p>}
         {state.success && <p className="text-sm text-[var(--accent)] mt-1">Photo updated.</p>}
