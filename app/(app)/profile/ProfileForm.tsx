@@ -20,6 +20,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       <form action={infoAction} className="card p-6 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <RoleTag role={profile.role} />
+          <span className="tag !bg-[var(--accent-soft)] !text-[var(--accent-dark)] !border-transparent">⭐ {profile.points} points</span>
         </div>
         <div>
           <label className="text-sm mb-1 block">Full name</label>

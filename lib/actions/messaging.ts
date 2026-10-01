@@ -7,7 +7,11 @@ import type { Profile, Message } from "@/types/database";
 
 export type ConversationPreview = {
   conversationId: string;
-  other: Profile;
+  type: "direct" | "group";
+  title: string;
+  avatarUrl: string | null;
+  otherUserId?: string;
+  memberCount?: number;
   lastMessage: Message | null;
   updatedAt: string;
 };
@@ -20,40 +24,45 @@ export async function getConversationList(): Promise<{
   const userId = await getVerifiedUserId(supabase);
   if (!userId) return { conversations: [], otherUsers: [] };
 
-  const { data: convos } = await supabase
-    .from("conversations")
-    .select("id, user_a, user_b, created_at")
-    .or(`user_a.eq.${userId},user_b.eq.${userId}`);
+  const [{ data: direct }, { data: memberRows }] = await Promise.all([
+    supabase.from("conversations").select("id, user_a, user_b, created_at").eq("type", "direct").or(`user_a.eq.${userId},user_b.eq.${userId}`),
+    supabase.from("conversation_members").select("conversation_id, conversations(id, title, avatar_url, created_at)").eq("user_id", userId),
+  ]);
 
-  const list = convos ?? [];
-  const otherIds = list.map((c) => (c.user_a === userId ? c.user_b : c.user_a));
-  const excludeIds = [userId, ...otherIds];
+  const directList = direct ?? [];
+  type GroupConvoRow = { id: string; title: string | null; avatar_url: string | null; created_at: string };
+  const groupList = (memberRows ?? [])
+    .map((r) => r.conversations as unknown as GroupConvoRow | null)
+    .filter((c): c is GroupConvoRow => !!c);
 
-  // These four don't depend on each other — run them together instead of
-  // one after another (this alone was the biggest source of lag on the
-  // Messages page: 3 sequential round trips became 1).
-  const [othersResult, lastMessagesResult, otherUsersResult, hiddenResult] = await Promise.all([
-    otherIds.length
-      ? supabase.from("profiles").select("*").in("id", otherIds)
-      : Promise.resolve({ data: [] as Profile[] }),
-    list.length
-      ? supabase
-          .from("messages")
-          .select("*")
-          .in("conversation_id", list.map((c) => c.id))
-          .order("created_at", { ascending: false })
+  const allConvoIds = [...directList.map((c) => c.id), ...groupList.map((c) => c.id)];
+  const otherIds = directList.map((c) => (c.user_a === userId ? c.user_b : c.user_a)).filter((id): id is string => !!id);
+  const { data: blocks } = await supabase
+    .from("user_blocks")
+    .select("blocked_id, blocker_id")
+    .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+  const blockedIds = (blocks ?? []).map((b) => (b.blocker_id === userId ? b.blocked_id : b.blocker_id));
+  const excludeIds = [userId, ...otherIds, ...blockedIds];
+
+  const [othersResult, lastMessagesResult, otherUsersResult, hiddenResult, memberCountsResult] = await Promise.all([
+    otherIds.length ? supabase.from("profiles").select("*").in("id", otherIds) : Promise.resolve({ data: [] as Profile[] }),
+    allConvoIds.length
+      ? supabase.from("messages").select("*").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as Message[] }),
-    supabase
-      .from("profiles")
-      .select("*")
-      .not("id", "in", `(${excludeIds.join(",")})`)
-      .order("created_at", { ascending: false })
-      .limit(20),
+    supabase.from("profiles").select("*").not("id", "in", `(${excludeIds.join(",")})`).order("created_at", { ascending: false }).limit(20),
     supabase.from("message_deletions").select("message_id").eq("user_id", userId),
+    groupList.length
+      ? supabase.from("conversation_members").select("conversation_id").in("conversation_id", groupList.map((c) => c.id))
+      : Promise.resolve({ data: [] as { conversation_id: string }[] }),
   ]);
 
   const otherById = new Map((othersResult.data ?? []).map((p) => [p.id, p]));
   const hiddenIds = new Set((hiddenResult.data ?? []).map((d) => d.message_id as string));
+
+  const memberCounts = new Map<string, number>();
+  for (const row of memberCountsResult.data ?? []) {
+    memberCounts.set(row.conversation_id, (memberCounts.get(row.conversation_id) ?? 0) + 1);
+  }
 
   const lastByConvo = new Map<string, Message>();
   for (const m of lastMessagesResult.data ?? []) {
@@ -61,22 +70,72 @@ export async function getConversationList(): Promise<{
     if (!lastByConvo.has(m.conversation_id)) lastByConvo.set(m.conversation_id, m);
   }
 
-  const conversations: ConversationPreview[] = list
+  const directPreviews: ConversationPreview[] = directList
     .map((c) => {
-      const other = otherById.get(c.user_a === userId ? c.user_b : c.user_a);
+      const other = otherById.get(c.user_a === userId ? c.user_b! : c.user_a!);
       if (!other) return null;
       const lastMessage = lastByConvo.get(c.id) ?? null;
       return {
         conversationId: c.id,
-        other,
+        type: "direct" as const,
+        title: other.full_name || other.username,
+        avatarUrl: other.avatar_url,
+        otherUserId: other.id,
         lastMessage,
         updatedAt: lastMessage?.created_at ?? c.created_at,
       };
     })
-    .filter((x): x is ConversationPreview => x !== null)
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    .filter((x) => x !== null) as ConversationPreview[];
+
+  const groupPreviews: ConversationPreview[] = groupList.map((c) => {
+    const lastMessage = lastByConvo.get(c.id) ?? null;
+    return {
+      conversationId: c.id,
+      type: "group" as const,
+      title: c.title || "Group",
+      avatarUrl: c.avatar_url,
+      memberCount: memberCounts.get(c.id) ?? 0,
+      lastMessage,
+      updatedAt: lastMessage?.created_at ?? c.created_at,
+    };
+  });
+
+  const conversations = [...directPreviews, ...groupPreviews].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
 
   return { conversations, otherUsers: (otherUsersResult.data ?? []) as Profile[] };
+}
+
+export type ConversationInfo =
+  | { type: "direct"; other: Profile }
+  | { type: "group"; title: string; avatarUrl: string | null; members: Profile[] };
+
+export async function getConversationInfo(conversationId: string): Promise<ConversationInfo | null> {
+  const supabase = await createClient();
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return null;
+
+  const { data: convo } = await supabase.from("conversations").select("*").eq("id", conversationId).single();
+  if (!convo) return null;
+
+  if (convo.type === "direct") {
+    const otherId = convo.user_a === userId ? convo.user_b : convo.user_a;
+    if (!otherId) return null;
+    const { data: other } = await supabase.from("profiles").select("*").eq("id", otherId).single();
+    if (!other) return null;
+    return { type: "direct", other: other as Profile };
+  }
+
+  const { data: memberRows } = await supabase
+    .from("conversation_members")
+    .select("profiles(*)")
+    .eq("conversation_id", conversationId);
+  const members = (memberRows ?? [])
+    .map((r) => r.profiles as unknown as Profile | null)
+    .filter((p): p is Profile => !!p);
+
+  return { type: "group", title: convo.title || "Group", avatarUrl: convo.avatar_url, members };
 }
 
 export async function searchUsers(query: string): Promise<Profile[]> {
@@ -84,10 +143,14 @@ export async function searchUsers(query: string): Promise<Profile[]> {
   const userId = await getVerifiedUserId(supabase);
   if (!userId || !query.trim()) return [];
 
+  const { data: blocks } = await supabase.from("user_blocks").select("blocked_id, blocker_id").or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+  const blockedIds = (blocks ?? []).map((b) => (b.blocker_id === userId ? b.blocked_id : b.blocker_id));
+  const exclude = [userId, ...blockedIds];
+
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .neq("id", userId)
+    .not("id", "in", `(${exclude.join(",")})`)
     .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
     .limit(20);
 

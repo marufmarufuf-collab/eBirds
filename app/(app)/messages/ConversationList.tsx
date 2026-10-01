@@ -147,9 +147,12 @@ export default function ConversationList({
                 active ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--surface-2)]"
               }`}
             >
-              <Avatar url={c.other.avatar_url} name={c.other.username} size={44} />
+              <Avatar url={c.avatarUrl} name={c.title} size={44} />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{c.other.full_name || c.other.username}</p>
+                <p className="font-medium text-sm truncate">
+                  {c.title}
+                  {c.type === "group" && <span className="text-[var(--muted)] font-normal"> · {c.memberCount} members</span>}
+                </p>
                 <p className="text-xs text-[var(--muted)] truncate">
                   {previewText(c.lastMessage, c.lastMessage?.sender_id === currentUserId)}
                 </p>

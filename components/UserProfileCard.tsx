@@ -1,9 +1,10 @@
 import ClickableAvatar from "./ClickableAvatar";
 import RoleTag from "./RoleTag";
+import UserSafetyMenu from "./UserSafetyMenu";
 import StartConversationButton from "@/app/(app)/users/[id]/StartConversationButton";
 import type { Profile } from "@/types/database";
 
-export default function UserProfileCard({ user }: { user: Profile }) {
+export default function UserProfileCard({ user, isBlocked }: { user: Profile; isBlocked: boolean }) {
   return (
     <>
       <div className="card p-6 flex items-center gap-4">
@@ -17,6 +18,7 @@ export default function UserProfileCard({ user }: { user: Profile }) {
           <p className="text-sm text-[var(--muted)] truncate">{user.email}</p>
         </div>
         <StartConversationButton userId={user.id} />
+        <UserSafetyMenu userId={user.id} initiallyBlocked={isBlocked} />
       </div>
 
       {user.bio && (

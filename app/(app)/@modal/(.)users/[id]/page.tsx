@@ -14,12 +14,15 @@ export default async function UserProfileModal({ params }: { params: Promise<{ i
   const userId = await getVerifiedUserId(supabase);
   if (!userId || id === userId) return null;
 
-  const { data: user } = await supabase.from("profiles").select("*").eq("id", id).single();
+  const [{ data: user }, { data: blockRow }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", id).single(),
+    supabase.from("user_blocks").select("blocker_id").eq("blocker_id", userId).eq("blocked_id", id).maybeSingle(),
+  ]);
   if (!user) notFound();
 
   return (
     <ModalOverlay>
-      <UserProfileCard user={user} />
+      <UserProfileCard user={user} isBlocked={!!blockRow} />
     </ModalOverlay>
   );
 }

@@ -15,7 +15,10 @@ export default async function AdminDashboard({
 
   return (
     <>
-      <h1 className="display text-2xl mb-1">Admin dashboard</h1>
+      <div className="flex items-center justify-between mb-1 flex-wrap gap-3">
+        <h1 className="display text-2xl">Admin dashboard</h1>
+        <Link href="/admin/reports" className="btn btn-ghost">View reports</Link>
+      </div>
       <p className="text-[var(--muted)] mb-6">{users.length} account{users.length === 1 ? "" : "s"}</p>
 
       <AdminSearch defaultValue={q ?? ""} />

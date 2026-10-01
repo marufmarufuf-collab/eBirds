@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import BottomProfilePanel from "./BottomProfilePanel";
-import { HomeIcon, MessagesIcon, AdminIcon, SidebarToggleIcon } from "./icons";
+import { HomeIcon, MessagesIcon, AdminIcon, SidebarToggleIcon, CompassIcon, CalendarIcon, UsersIcon } from "./icons";
 import type { Profile } from "@/types/database";
 
 const STORAGE_KEY = "sidebar-collapsed";
 
 const NAV = [
   { href: "/home", label: "Home", Icon: HomeIcon },
+  { href: "/discover", label: "Discover", Icon: CompassIcon },
+  { href: "/events/mine", label: "My Events", Icon: CalendarIcon },
+  { href: "/clubs", label: "Clubs", Icon: UsersIcon },
   { href: "/messages", label: "Messages", Icon: MessagesIcon },
 ] as const;
 

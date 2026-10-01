@@ -130,6 +130,34 @@ export function ClockIcon({ className = "" }: IconProps) {
   );
 }
 
+export function CompassIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15 9-2 6-6 2 2-6 6-2Z" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 9.5h17M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+export function UsersIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <path d="M16 4.5a3 3 0 0 1 0 6M22 20c0-2.8-2-5.1-4.7-5.7" />
+    </svg>
+  );
+}
+
 export function SearchIcon({ className = "" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={`${base} ${className}`} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

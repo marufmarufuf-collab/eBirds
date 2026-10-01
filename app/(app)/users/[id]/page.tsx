@@ -13,12 +13,15 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
   if (!userId) redirect("/login");
   if (id === userId) redirect("/profile");
 
-  const { data: user } = await supabase.from("profiles").select("*").eq("id", id).single();
+  const [{ data: user }, { data: blockRow }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", id).single(),
+    supabase.from("user_blocks").select("blocker_id").eq("blocker_id", userId).eq("blocked_id", id).maybeSingle(),
+  ]);
   if (!user) notFound();
 
   return (
     <main className="px-5 py-10 max-w-2xl">
-      <UserProfileCard user={user} />
+      <UserProfileCard user={user} isBlocked={!!blockRow} />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUserId } from "@/lib/verified-user";
-import { getHiddenMessageIds, markMessagesRead } from "@/lib/actions/messaging";
+import { getHiddenMessageIds, markMessagesRead, getConversationInfo } from "@/lib/actions/messaging";
 import { notFound } from "next/navigation";
 import ChatView from "./ChatView";
 
@@ -10,32 +10,31 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
   const userId = await getVerifiedUserId(supabase);
   if (!userId) notFound();
 
-  const { data: convo } = await supabase
-    .from("conversations")
-    .select("*")
-    .eq("id", conversationId)
-    .single();
+  // RLS already restricts this to conversations the user actually belongs
+  // to (direct participant or group member) — a null result here means
+  // either it doesn't exist or they're not in it.
+  const { data: convo } = await supabase.from("conversations").select("*").eq("id", conversationId).single();
+  if (!convo) notFound();
 
-  if (!convo || (convo.user_a !== userId && convo.user_b !== userId)) notFound();
-
-  const otherId = convo.user_a === userId ? convo.user_b : convo.user_a;
-  const [{ data: other }, { data: messages }, hiddenIds] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", otherId).single(),
+  const [info, { data: messages }, hiddenIds] = await Promise.all([
+    getConversationInfo(conversationId),
     supabase.from("messages").select("*").eq("conversation_id", conversationId).order("created_at", { ascending: true }),
     getHiddenMessageIds(conversationId),
   ]);
 
-  if (!other) notFound();
+  if (!info) notFound();
 
-  // Opening the chat marks the other person's messages as read.
-  markMessagesRead(conversationId);
+  // Opening the chat marks the other person's messages as read (direct
+  // chats only — a single read_at can't represent "read by everyone" in a
+  // group, so group messages just show sent/pending, no double-tick).
+  if (info.type === "direct") markMessagesRead(conversationId);
 
   return (
     <ChatView
       conversationId={conversationId}
       conversationStartedAt={convo.created_at}
       currentUserId={userId}
-      other={other}
+      info={info}
       initialMessages={(messages ?? []).filter((m) => !hiddenIds.has(m.id))}
     />
   );

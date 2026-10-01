@@ -14,6 +14,7 @@ export type Profile = {
   bio: string | null;
   role: string;
   is_active: boolean;
+  points: number;
   created_at: string;
   updated_at: string;
   last_seen_at: string | null;
@@ -21,8 +22,79 @@ export type Profile = {
 
 export type Conversation = {
   id: string;
-  user_a: string;
-  user_b: string;
+  type: "direct" | "group";
+  user_a: string | null;
+  user_b: string | null;
+  title: string | null;
+  avatar_url: string | null;
+  created_at: string;
+};
+
+export const ACTIVITIES = ["walking", "running", "jogging", "swimming", "trips", "sightseeing", "camping"] as const;
+export type Activity = (typeof ACTIVITIES)[number];
+
+export type EventStatus = "open" | "full" | "cancelled" | "completed";
+
+export type Event = {
+  id: string;
+  organizer_id: string;
+  activity: Activity;
+  title: string;
+  description: string | null;
+  event_date: string;
+  location_area: string;
+  meeting_point: string | null;
+  max_participants: number | null;
+  is_paid: boolean;
+  price: number | null;
+  currency: string;
+  status: EventStatus;
+  conversation_id: string | null;
+  created_at: string;
+};
+
+export type ParticipantStatus = "pending" | "confirmed" | "declined" | "cancelled";
+
+export type EventParticipant = {
+  event_id: string;
+  user_id: string;
+  status: ParticipantStatus;
+  requested_at: string;
+  confirmed_at: string | null;
+  completed: boolean;
+};
+
+export type Club = {
+  id: string;
+  name: string;
+  description: string | null;
+  avatar_url: string | null;
+  created_by: string;
+  conversation_id: string | null;
+  created_at: string;
+};
+
+export type ClubMember = {
+  club_id: string;
+  user_id: string;
+  role: "member" | "admin";
+  joined_at: string;
+};
+
+export type ClubAnnouncement = {
+  id: string;
+  club_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+};
+
+export type PointsEntry = {
+  id: string;
+  user_id: string;
+  amount: number;
+  reason: string;
+  event_id: string | null;
   created_at: string;
 };
 

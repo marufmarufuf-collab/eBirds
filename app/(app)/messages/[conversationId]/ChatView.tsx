@@ -23,6 +23,7 @@ import { VoicePlayerProvider } from "@/lib/voice-player-context";
 import MiniVoicePlayerBar from "@/components/MiniVoicePlayerBar";
 import Link from "next/link";
 import type { Message, Profile } from "@/types/database";
+import type { ConversationInfo } from "@/lib/actions/messaging";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -30,15 +31,18 @@ export default function ChatView({
   conversationId,
   conversationStartedAt,
   currentUserId,
-  other,
+  info,
   initialMessages,
 }: {
   conversationId: string;
   conversationStartedAt: string;
   currentUserId: string;
-  other: Profile;
+  info: ConversationInfo;
   initialMessages: Message[];
 }) {
+  const isGroup = info.type === "group";
+  const other = info.type === "direct" ? info.other : null;
+  const [showMembers, setShowMembers] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [pendingPhoto, setPendingPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
@@ -374,15 +378,44 @@ export default function ChatView({
   return (
     <VoicePlayerProvider>
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)] shrink-0">
+        <div className="flex items-center gap-3 h-16 px-4 border-b bg-[var(--surface)] shrink-0 relative">
           <Link href="/messages" className="btn btn-ghost !p-2 md:hidden" aria-label="Back">←</Link>
-          <Link href={`/users/${other.id}`} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1">
-            <Avatar url={other.avatar_url} name={other.username} size={36} />
-            <div className="min-w-0">
-              <p className="font-medium text-sm truncate">{other.full_name || other.username}</p>
-              <p className="text-xs text-[var(--muted)] truncate">@{other.username}</p>
+          {isGroup ? (
+            <button onClick={() => setShowMembers((s) => !s)} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1 text-left">
+              <Avatar url={info.avatarUrl} name={info.title} size={36} />
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{info.title}</p>
+                <p className="text-xs text-[var(--muted)] truncate">{info.members.length} members</p>
+              </div>
+            </button>
+          ) : (
+            <Link href={`/users/${other!.id}`} className="flex items-center gap-3 hover:opacity-80 min-w-0 flex-1">
+              <Avatar url={other!.avatar_url} name={other!.username} size={36} />
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{other!.full_name || other!.username}</p>
+                <p className="text-xs text-[var(--muted)] truncate">@{other!.username}</p>
+              </div>
+            </Link>
+          )}
+
+          {isGroup && showMembers && (
+            <div
+              className="absolute left-4 top-full mt-1 w-64 max-h-80 overflow-y-auto p-1.5 z-40 enter"
+              style={{ background: "#ffffff", border: "1px solid #f0e2d3", borderRadius: 14, boxShadow: "0 16px 40px -12px rgba(33,23,16,0.28)" }}
+            >
+              {info.members.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/users/${m.id}`}
+                  onClick={() => setShowMembers(false)}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] hover:bg-[var(--surface-2)]"
+                >
+                  <Avatar url={m.avatar_url} name={m.username} size={28} />
+                  <span className="text-sm truncate">{m.full_name || m.username}</span>
+                </Link>
+              ))}
             </div>
-          </Link>
+          )}
         </div>
 
         <MiniVoicePlayerBar />
