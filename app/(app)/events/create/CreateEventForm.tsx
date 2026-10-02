@@ -15,6 +15,7 @@ export default function CreateEventForm() {
   const [eventDate, setEventDate] = useState("");
   const [locationArea, setLocationArea] = useState("");
   const [meetingPoint, setMeetingPoint] = useState("");
+  const [locationLink, setLocationLink] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [isPaid, setIsPaid] = useState(false);
   const [price, setPrice] = useState("");
@@ -33,6 +34,7 @@ export default function CreateEventForm() {
         eventDate: eventDate ? new Date(eventDate).toISOString() : "",
         locationArea,
         meetingPoint,
+        locationLink,
         maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : null,
         isPaid,
         price: price ? parseFloat(price) : null,
@@ -83,6 +85,11 @@ export default function CreateEventForm() {
       <div>
         <label className="text-sm mb-1 block">Exact meeting point (only shown to confirmed participants)</label>
         <input value={meetingPoint} onChange={(e) => setMeetingPoint(e.target.value)} className="input" placeholder="e.g. by the fountain, Chilanzar metro exit 2" />
+      </div>
+
+      <div>
+        <label className="text-sm mb-1 block">Location link (optional — Google Maps, etc. Also only shown to confirmed participants)</label>
+        <input value={locationLink} onChange={(e) => setLocationLink(e.target.value)} className="input" placeholder="https://maps.google.com/…" />
       </div>
 
       <div>

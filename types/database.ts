@@ -44,6 +44,7 @@ export type Event = {
   event_date: string;
   location_area: string;
   meeting_point: string | null;
+  location_link: string | null;
   max_participants: number | null;
   is_paid: boolean;
   price: number | null;

@@ -6,6 +6,9 @@ import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
 import { ACTIVITY_META, formatEventDate, formatPrice } from "@/lib/activity-meta";
+import { MessagesIcon } from "@/components/icons";
+import LinkifiedText from "@/components/LinkifiedText";
+import { startConversation } from "@/lib/actions/messaging";
 import {
   requestJoinEvent,
   cancelMyParticipation,
@@ -63,6 +66,10 @@ export default function EventDetailClient({
       await cancelMyParticipation(event.id);
       setMyParticipation((p) => (p ? { ...p, status: "cancelled" } : p));
     });
+  }
+
+  function handleMessage(userId: string) {
+    startTransition(() => startConversation(userId));
   }
 
   function handleConfirm(userId: string) {
@@ -129,7 +136,12 @@ export default function EventDetailClient({
             <>
               <p className="text-sm font-medium text-[var(--accent-dark)] mb-2">You're in! 🎉</p>
               {event.meeting_point && (
-                <p className="text-sm text-[var(--muted)] mb-3">Meeting point: <span className="text-[var(--ink)]">{event.meeting_point}</span></p>
+                <p className="text-sm text-[var(--muted)] mb-1">Meeting point: <span className="text-[var(--ink)]">{event.meeting_point}</span></p>
+              )}
+              {event.location_link && (
+                <p className="text-sm text-[var(--muted)] mb-3">
+                  Map: <LinkifiedText text={event.location_link} />
+                </p>
               )}
               <div className="flex gap-2 flex-wrap">
                 {event.conversation_id && (
@@ -175,7 +187,14 @@ export default function EventDetailClient({
                 )}
               </div>
             </div>
-            {event.meeting_point && <p className="text-sm text-[var(--muted)]">Meeting point (shown to confirmed participants): {event.meeting_point}</p>}
+            {event.meeting_point && (
+              <p className="text-sm text-[var(--muted)] mb-1">Meeting point (shown to confirmed participants): {event.meeting_point}</p>
+            )}
+            {event.location_link && (
+              <p className="text-sm text-[var(--muted)]">
+                Map: <LinkifiedText text={event.location_link} />
+              </p>
+            )}
           </div>
 
           {requests.length > 0 && (
@@ -183,11 +202,18 @@ export default function EventDetailClient({
               <h2 className="text-sm font-medium text-[var(--muted)] mb-3">Requests ({requests.length})</h2>
               <div className="space-y-2">
                 {requests.map((r) => (
-                  <div key={r.user_id} className="flex items-center gap-3">
-                    <Avatar url={r.profile.avatar_url} name={r.profile.username} size={32} />
-                    <span className="flex-1 text-sm truncate">{r.profile.full_name || r.profile.username}</span>
-                    <button onClick={() => handleConfirm(r.user_id)} disabled={pending} className="btn btn-primary !px-3">Confirm</button>
-                    <button onClick={() => handleDecline(r.user_id)} disabled={pending} className="btn btn-ghost !px-3">Decline</button>
+                  <div key={r.user_id} className="flex items-center gap-3 flex-wrap">
+                    <Link href={`/users/${r.user_id}`} className="flex items-center gap-2 hover:opacity-80 flex-1 min-w-0">
+                      <Avatar url={r.profile.avatar_url} name={r.profile.username} size={32} />
+                      <span className="text-sm truncate">{r.profile.full_name || r.profile.username}</span>
+                    </Link>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => handleMessage(r.user_id)} disabled={pending} className="btn btn-ghost !px-3" aria-label="Message before deciding">
+                        <MessagesIcon className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleConfirm(r.user_id)} disabled={pending} className="btn btn-primary !px-3">Confirm</button>
+                      <button onClick={() => handleDecline(r.user_id)} disabled={pending} className="btn btn-ghost !px-3">Decline</button>
+                    </div>
                   </div>
                 ))}
               </div>

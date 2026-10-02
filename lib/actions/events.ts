@@ -5,6 +5,12 @@ import { getVerifiedUserId } from "@/lib/verified-user";
 import { revalidatePath } from "next/cache";
 import type { Event, EventParticipant, Profile, Activity } from "@/types/database";
 
+function normalizeUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
+}
+
 export type CreateEventInput = {
   activity: Activity;
   title: string;
@@ -12,6 +18,7 @@ export type CreateEventInput = {
   eventDate: string; // ISO datetime
   locationArea: string;
   meetingPoint: string;
+  locationLink: string;
   maxParticipants: number | null;
   isPaid: boolean;
   price: number | null;
@@ -35,6 +42,7 @@ export async function createEvent(input: CreateEventInput): Promise<{ error?: st
       event_date: input.eventDate,
       location_area: input.locationArea.trim(),
       meeting_point: input.meetingPoint.trim() || null,
+      location_link: normalizeUrl(input.locationLink),
       max_participants: input.maxParticipants,
       is_paid: input.isPaid,
       price: input.isPaid ? input.price : null,
