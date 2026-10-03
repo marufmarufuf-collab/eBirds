@@ -105,7 +105,7 @@ export default function EventDetailClient({
   const canJoin = !isOrganizer && (!myParticipation || ["declined", "cancelled"].includes(myParticipation.status)) && event.status === "open";
 
   return (
-    <main className="px-5 py-10 max-w-2xl">
+    <>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="tag">{meta.emoji} {meta.label}</span>
         <span className={`tag ${event.is_paid ? "" : "!bg-[var(--accent-soft)] !text-[var(--accent-dark)] !border-transparent"}`}>
@@ -239,6 +239,6 @@ export default function EventDetailClient({
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }

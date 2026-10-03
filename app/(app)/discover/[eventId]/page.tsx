@@ -24,13 +24,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
   if (!organizer) notFound();
 
   return (
-    <EventDetailClient
-      event={event}
-      organizer={organizer}
-      currentUserId={userId}
-      isOrganizer={isOrganizer}
-      initialMyParticipation={myParticipation}
-      initialParticipants={participants}
-    />
+    <main className="px-5 py-10 max-w-2xl">
+      <EventDetailClient
+        event={event}
+        organizer={organizer}
+        currentUserId={userId}
+        isOrganizer={isOrganizer}
+        initialMyParticipation={myParticipation}
+        initialParticipants={participants}
+      />
+    </main>
   );
 }

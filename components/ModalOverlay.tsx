@@ -6,7 +6,13 @@ import { useEffect } from "react";
 // Generic full-screen overlay for intercepted routes: closing it just goes
 // back in history, which lands you exactly where you clicked from — same
 // feel as Telegram's profile popup.
-export default function ModalOverlay({ children }: { children: React.ReactNode }) {
+export default function ModalOverlay({
+  children,
+  maxWidth = "max-w-lg",
+}: {
+  children: React.ReactNode;
+  maxWidth?: string;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,7 +28,7 @@ export default function ModalOverlay({ children }: { children: React.ReactNode }
       onClick={() => router.back()}
       className="fixed inset-0 z-[90] bg-black/40 backdrop-fade flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto"
     >
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg mt-10 sm:mt-0 enter">
+      <div onClick={(e) => e.stopPropagation()} className={`w-full ${maxWidth} mt-10 sm:mt-0 enter`}>
         <div className="flex justify-end mb-2">
           <button
             onClick={() => router.back()}
