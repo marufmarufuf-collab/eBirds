@@ -8,6 +8,7 @@ import {
   deleteMessageForMe,
   deleteMessageForEveryone,
   markMessagesRead,
+  getOlderMessages,
 } from "@/lib/actions/messaging";
 import { dayLabel, timeLabel } from "@/lib/format-date";
 import { compressImage } from "@/lib/image-compress";
@@ -33,17 +34,23 @@ export default function ChatView({
   currentUserId,
   info,
   initialMessages,
+  initialHasMore,
 }: {
   conversationId: string;
   conversationStartedAt: string;
   currentUserId: string;
   info: ConversationInfo;
   initialMessages: Message[];
+  initialHasMore: boolean;
 }) {
   const isGroup = info.type === "group";
   const other = info.type === "direct" ? info.other : null;
   const [showMembers, setShowMembers] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isPrependingRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [pendingPhoto, setPendingPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -96,8 +103,36 @@ export default function ChatView({
   }, [conversationId, currentUserId]);
 
   useEffect(() => {
+    // Loading older messages changes messages.length too, but that should
+    // keep your reading position, not jump to the bottom — handleLoadOlder
+    // sets this flag right before prepending.
+    if (isPrependingRef.current) {
+      isPrependingRef.current = false;
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  async function handleLoadOlder() {
+    if (!hasMore || loadingOlder || messages.length === 0) return;
+    setLoadingOlder(true);
+    const container = scrollRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    try {
+      const page = await getOlderMessages(conversationId, messages[0].created_at);
+      isPrependingRef.current = true;
+      setMessages((prev) => [...page.messages, ...prev]);
+      setHasMore(page.hasMore);
+      // Wait for the DOM to actually grow before adjusting scroll, so the
+      // messages you were reading stay in the same spot on screen instead
+      // of the view jumping.
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop = container.scrollHeight - prevScrollHeight;
+      });
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
 
   // Stop the mic if someone navigates away mid-recording.
   useEffect(() => {
@@ -420,10 +455,18 @@ export default function ChatView({
 
         <MiniVoicePlayerBar />
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[var(--paper)]">
-          <p className="text-center text-xs text-[var(--muted)] mb-3">
-            Conversation started {dayLabel(conversationStartedAt)}
-          </p>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-1 bg-[var(--paper)]">
+          {hasMore ? (
+            <div className="flex justify-center mb-3">
+              <button onClick={handleLoadOlder} disabled={loadingOlder} className="btn btn-ghost !text-xs !py-1.5">
+                {loadingOlder && <Spinner />} {loadingOlder ? "Loading…" : "Load earlier messages"}
+              </button>
+            </div>
+          ) : (
+            <p className="text-center text-xs text-[var(--muted)] mb-3">
+              Conversation started {dayLabel(conversationStartedAt)}
+            </p>
+          )}
 
           {grouped.map((group) => (
             <div key={group.label}>

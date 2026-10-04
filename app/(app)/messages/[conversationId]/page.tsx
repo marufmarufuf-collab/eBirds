@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUserId } from "@/lib/verified-user";
-import { getHiddenMessageIds, markMessagesRead, getConversationInfo } from "@/lib/actions/messaging";
+import { getRecentMessages, markMessagesRead, getConversationInfo } from "@/lib/actions/messaging";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import ChatView from "./ChatView";
 
 export default async function ConversationPage({ params }: { params: Promise<{ conversationId: string }> }) {
@@ -16,18 +17,19 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
   const { data: convo } = await supabase.from("conversations").select("*").eq("id", conversationId).single();
   if (!convo) notFound();
 
-  const [info, { data: messages }, hiddenIds] = await Promise.all([
-    getConversationInfo(conversationId),
-    supabase.from("messages").select("*").eq("conversation_id", conversationId).order("created_at", { ascending: true }),
-    getHiddenMessageIds(conversationId),
+  // info reuses this same row instead of re-fetching it; messages load as
+  // one bounded page instead of the whole history — both run together.
+  const [info, page] = await Promise.all([
+    getConversationInfo(conversationId, convo),
+    getRecentMessages(conversationId),
   ]);
 
   if (!info) notFound();
 
-  // Opening the chat marks the other person's messages as read (direct
-  // chats only — a single read_at can't represent "read by everyone" in a
-  // group, so group messages just show sent/pending, no double-tick).
-  if (info.type === "direct") markMessagesRead(conversationId);
+  // Marking read doesn't need to block the response — after() guarantees
+  // it still runs to completion even though the page has already been
+  // sent, which a bare un-awaited call can't promise on serverless.
+  if (info.type === "direct") after(() => markMessagesRead(conversationId));
 
   return (
     <ChatView
@@ -35,7 +37,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
       conversationStartedAt={convo.created_at}
       currentUserId={userId}
       info={info}
-      initialMessages={(messages ?? []).filter((m) => !hiddenIds.has(m.id))}
+      initialMessages={page.messages}
+      initialHasMore={page.hasMore}
     />
   );
 }

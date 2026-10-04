@@ -28,7 +28,7 @@ export default async function EventDetailModal({ params }: { params: Promise<{ e
   if (!organizer) notFound();
 
   return (
-    <ModalOverlay maxWidth="max-w-xl">
+    <ModalOverlay maxWidth="max-w-md">
       <div className="card p-6">
         <EventDetailClient
           event={event}

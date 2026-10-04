@@ -6,7 +6,7 @@ import CreateEventForm from "../../../events/create/CreateEventForm";
 // gets the real full page.
 export default function CreateEventModal() {
   return (
-    <ModalOverlay maxWidth="max-w-xl">
+    <ModalOverlay maxWidth="max-w-md">
       <h1 className="display text-xl mb-4 px-1">Create an event</h1>
       <CreateEventForm />
     </ModalOverlay>

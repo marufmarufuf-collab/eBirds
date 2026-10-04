@@ -111,12 +111,17 @@ export type ConversationInfo =
   | { type: "direct"; other: Profile }
   | { type: "group"; title: string; avatarUrl: string | null; members: Profile[] };
 
-export async function getConversationInfo(conversationId: string): Promise<ConversationInfo | null> {
+type ConversationRow = { id: string; type: string; user_a: string | null; user_b: string | null; title: string | null; avatar_url: string | null };
+
+// Takes the conversation row as a parameter when the caller already has it
+// (the chat page always does) — this used to re-fetch the exact same row
+// a second time on every single chat open.
+export async function getConversationInfo(conversationId: string, prefetchedConvo?: ConversationRow): Promise<ConversationInfo | null> {
   const supabase = await createClient();
   const userId = await getVerifiedUserId(supabase);
   if (!userId) return null;
 
-  const { data: convo } = await supabase.from("conversations").select("*").eq("id", conversationId).single();
+  const convo = prefetchedConvo ?? (await supabase.from("conversations").select("*").eq("id", conversationId).single()).data;
   if (!convo) return null;
 
   if (convo.type === "direct") {
@@ -332,6 +337,55 @@ export async function markMessagesRead(conversationId: string): Promise<void> {
     .eq("conversation_id", conversationId)
     .neq("sender_id", userId)
     .is("read_at", null);
+}
+
+const MESSAGE_PAGE_SIZE = 50;
+
+export type MessagePage = { messages: Message[]; hasMore: boolean };
+
+// Loads only the most recent page instead of the entire history — a
+// conversation with thousands of messages used to fetch and send all of
+// them on every single open, which was the biggest reason chats felt slow
+// to open. Older messages load on demand via getOlderMessages below.
+export async function getRecentMessages(conversationId: string): Promise<MessagePage> {
+  const supabase = await createClient();
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return { messages: [], hasMore: false };
+
+  const [{ data }, hiddenIds] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MESSAGE_PAGE_SIZE + 1),
+    getHiddenMessageIds(conversationId),
+  ]);
+
+  const rows = (data ?? []).filter((m) => !hiddenIds.has(m.id));
+  const hasMore = rows.length > MESSAGE_PAGE_SIZE;
+  return { messages: rows.slice(0, MESSAGE_PAGE_SIZE).reverse(), hasMore };
+}
+
+export async function getOlderMessages(conversationId: string, beforeCreatedAt: string): Promise<MessagePage> {
+  const supabase = await createClient();
+  const userId = await getVerifiedUserId(supabase);
+  if (!userId) return { messages: [], hasMore: false };
+
+  const [{ data }, hiddenIds] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .lt("created_at", beforeCreatedAt)
+      .order("created_at", { ascending: false })
+      .limit(MESSAGE_PAGE_SIZE + 1),
+    getHiddenMessageIds(conversationId),
+  ]);
+
+  const rows = (data ?? []).filter((m) => !hiddenIds.has(m.id));
+  const hasMore = rows.length > MESSAGE_PAGE_SIZE;
+  return { messages: rows.slice(0, MESSAGE_PAGE_SIZE).reverse(), hasMore };
 }
 
 export async function getHiddenMessageIds(conversationId: string): Promise<Set<string>> {
